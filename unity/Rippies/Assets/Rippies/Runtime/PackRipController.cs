@@ -83,7 +83,7 @@ namespace Rippies.Reveal
             // prevents presentation-pivot transforms from leaking forward.
             ResetReveal();
             cardPresenter?.Apply(payload.card);
-            authoredPack?.SetCard(payload.card);
+            authoredPack?.SetCard(payload.card, payload.packTypeId);
             ApplyPackPalette(payload.card);
             ApplyPackIdentity(payload.packTypeId);
             SetState(RipState.Presenting);
@@ -197,6 +197,9 @@ namespace Rippies.Reveal
         {
             return authoredPack?.TakeOverCard(presentationParent);
         }
+
+        public Transform AuthoredAnimationCard =>
+            authoredPack == null ? null : authoredPack.AnimatedCard;
 
         public void NotifyCardVisible()
         {

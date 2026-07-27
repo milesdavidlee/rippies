@@ -29,15 +29,31 @@ namespace Rippies.Reveal
         private float currentYaw;
         private float currentPitch;
         private bool wasComplete;
+        private bool trackingOpening;
+        private float openingTrackProgress;
 
-        public void SetCard(Transform target)
+        public void SetCard(Transform target, bool trackUntilComplete = false)
         {
             card = target;
+            trackingOpening = trackUntilComplete;
+            openingTrackProgress = trackUntilComplete ? 1f : 0f;
             wasComplete = false;
             desiredYaw = 0f;
             desiredPitch = 0f;
             currentYaw = 0f;
             currentPitch = 0f;
+        }
+
+        public void TrackOpeningCard(Transform target, float progress)
+        {
+            if (target == null)
+            {
+                return;
+            }
+
+            card = target;
+            trackingOpening = true;
+            openingTrackProgress = Mathf.Clamp01(progress);
         }
 
         private void Awake()
@@ -69,6 +85,15 @@ namespace Rippies.Reveal
                 desiredPitch = 0f;
                 currentYaw = Mathf.Lerp(currentYaw, 0f, Damp());
                 currentPitch = Mathf.Lerp(currentPitch, 0f, Damp());
+                if (trackingOpening &&
+                    (controller.State == RipState.Opening ||
+                     controller.State == RipState.Revealing))
+                {
+                    TrackOpeningCamera();
+                    return;
+                }
+
+                trackingOpening = false;
                 targetCamera.transform.position = Vector3.Lerp(
                     targetCamera.transform.position,
                     cameraStartPosition,
@@ -80,6 +105,7 @@ namespace Rippies.Reveal
                 return;
             }
 
+            trackingOpening = false;
             if (!wasComplete)
             {
                 wasComplete = true;
@@ -153,10 +179,54 @@ namespace Rippies.Reveal
 
         private void FrameCard()
         {
-            Vector3 center = card.position;
+            CalculateFocusPose(
+                card,
+                frameFill,
+                out focusedCameraPosition,
+                out focusedCameraRotation);
+        }
+
+        private void TrackOpeningCamera()
+        {
+            CalculateFocusPose(
+                card,
+                Mathf.Min(frameFill, 0.68f),
+                out Vector3 cardCameraPosition,
+                out Quaternion cardCameraRotation);
+            float blend = Mathf.SmoothStep(
+                0f,
+                1f,
+                Mathf.InverseLerp(0.08f, 0.82f, openingTrackProgress));
+            Vector3 targetPosition = Vector3.Lerp(
+                cameraStartPosition,
+                cardCameraPosition,
+                blend);
+            Quaternion targetRotation = Quaternion.Slerp(
+                cameraStartRotation,
+                cardCameraRotation,
+                blend);
+            float trackingDamp =
+                1f - Mathf.Exp(-14f * Time.unscaledDeltaTime);
+            targetCamera.transform.position = Vector3.Lerp(
+                targetCamera.transform.position,
+                targetPosition,
+                trackingDamp);
+            targetCamera.transform.rotation = Quaternion.Slerp(
+                targetCamera.transform.rotation,
+                targetRotation,
+                trackingDamp);
+        }
+
+        private void CalculateFocusPose(
+            Transform target,
+            float fill,
+            out Vector3 position,
+            out Quaternion rotation)
+        {
+            Vector3 center = target.position;
             Bounds bounds = new Bounds(center, Vector3.one * 0.01f);
             bool hasBounds = false;
-            foreach (Renderer renderer in card.GetComponentsInChildren<Renderer>(true))
+            foreach (Renderer renderer in target.GetComponentsInChildren<Renderer>(true))
             {
                 if (!hasBounds)
                 {
@@ -177,11 +247,11 @@ namespace Rippies.Reveal
                 horizontalHalf / Mathf.Max(targetCamera.aspect, 0.01f));
             float halfFov = targetCamera.fieldOfView * Mathf.Deg2Rad * 0.5f;
             float distance = effectiveHalf /
-                Mathf.Max(Mathf.Tan(halfFov) * frameFill, 0.01f);
+                Mathf.Max(Mathf.Tan(halfFov) * fill, 0.01f);
             Vector3 forward = cameraStartRotation * Vector3.forward;
-            focusedCameraPosition = center - forward * distance;
-            focusedCameraRotation = Quaternion.LookRotation(
-                center - focusedCameraPosition,
+            position = center - forward * distance;
+            rotation = Quaternion.LookRotation(
+                center - position,
                 cameraStartRotation * Vector3.up);
         }
     }

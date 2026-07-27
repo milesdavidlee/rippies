@@ -125,7 +125,7 @@ namespace Rippies.Reveal
                     interactiveCard.localRotation = Quaternion.identity;
                     interactiveCard.localScale = cardStartScale * 1.05f;
                 }
-                softOrbit?.SetCard(interactiveCard);
+                softOrbit?.SetCard(interactiveCard, true);
             }
 
             if (revealLight != null)
@@ -304,6 +304,11 @@ namespace Rippies.Reveal
             {
                 float eased = EaseOutBack(value);
                 owner.SampleAuthoredOpening(value);
+                softOrbit?.TrackOpeningCard(
+                    owner.HasAuthoredPack
+                        ? owner.AuthoredAnimationCard
+                        : card,
+                    value);
                 if (!owner.HasAuthoredPack && card != null)
                 {
                     card.localPosition = Vector3.LerpUnclamped(cardStartPosition, emergePosition, eased);
@@ -333,7 +338,7 @@ namespace Rippies.Reveal
 
             owner.NotifyCardVisible();
             interactiveCard = ResolveInteractiveCard(owner);
-            softOrbit?.SetCard(interactiveCard);
+            softOrbit?.SetCard(interactiveCard, true);
             Vector3 interactiveStartPosition = interactiveCard == null
                 ? Vector3.zero
                 : interactiveCard.localPosition;

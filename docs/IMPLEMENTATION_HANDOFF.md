@@ -141,13 +141,19 @@ unity/Rippies/Assets/Resources/Rippies/ThirdParty/Local/animated_card_loot_pack.
 7.48s–8.84s  card extraction and settle
 ```
 
-At reveal preparation, `CardFaceTextureFactory` derives a deterministic face
-from the immutable `CardPayload`. `AuthoredPackDriver` composites that face
-into only the front-art region of the purchased model's original UV atlas, so
-the authored border, edge thickness, and back remain intact. At the settle
-frame the authored card is detached without rescaling, wrapped in a pivot at
-its renderer center, and passed to `SoftOrbitCamera`; the camera dollies to
-frame the original card instead of changing its dimensions.
+At reveal preparation, `CardFaceTextureFactory` derives deterministic front
+and back artwork from the immutable `CardPayload` and selected `packTypeId`.
+`AuthoredPackDriver` composites both faces into the purchased model's original
+UV atlas. The generated art fills each complete flat face while preserving the
+model's physical bevel and edge thickness; the back uses the same orbit,
+gradient, foil-band, and typography language as the React Native pack covers.
+
+During extraction, `SoftOrbitCamera` continuously measures and tracks the
+animated card's live renderer bounds, blending from the pack framing into the
+inspection framing so the card stays centered and fully visible throughout the
+authored motion. At the settle frame the authored card is detached without
+rescaling, wrapped in a pivot at its renderer center, and remains under the
+same camera framing for direct touch inspection.
 
 Before every subsequent reveal, the card is restored to its authored parent
 and exact original local scale before a new payload is applied. This reset

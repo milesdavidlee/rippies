@@ -387,7 +387,7 @@ export function RevealExperience({pack, onCancel, onComplete}: Props) {
                 onPress={
                   nativeMode
                     ? () => {
-                        UnityRevealBridge.skipReveal().catch(() => {
+                        UnityRevealBridge.beginReveal().catch(() => {
                           // The visual swipe remains available if the bridge unloads.
                         });
                       }

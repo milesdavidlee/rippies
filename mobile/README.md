@@ -19,8 +19,9 @@ reveal when a local `UnityFramework.framework` export is embedded.
 - Persistent reveal receipts and opened-pack state through AsyncStorage.
 - Resume-safe behavior: the assigned card and presentation state never reroll.
 - An iOS Objective-C++ host module matching the Unity bridge contract.
-- Optional locally licensed authored pack animation with a deterministic
-  receipt-specific card face and direct 3D card handoff.
+- Optional locally licensed authored pack animation with deterministic
+  full-face front and pack-specific back artwork, live extraction camera
+  tracking, and a direct 3D card handoff.
 - Automatic local fallback when the Unity framework is not embedded.
 - Shared color, spacing, radius, motion, and pack tokens in
   `../shared/rippies-design-tokens.json`.

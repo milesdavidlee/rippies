@@ -47,6 +47,7 @@ namespace Rippies.Reveal
 
         public bool IsAvailable { get; private set; }
         public Transform PresentationCard => presentationCard;
+        public Transform AnimatedCard => demoCard;
 
         public bool Initialize(Transform packRoot)
         {
@@ -220,7 +221,7 @@ namespace Rippies.Reveal
             }
         }
 
-        public void SetCard(CardPayload card)
+        public void SetCard(CardPayload card, string packTypeId)
         {
             if (!IsAvailable || demoCard == null || card == null)
             {
@@ -232,9 +233,14 @@ namespace Rippies.Reveal
                 Destroy(generatedCardAtlas);
             }
 
-            Texture2D face = CardFaceTextureFactory.Build(card);
-            generatedCardAtlas = BakeFaceIntoAtlas(originalCardAtlas, face);
-            Destroy(face);
+            Texture2D front = CardFaceTextureFactory.BuildFront(card);
+            Texture2D back = CardFaceTextureFactory.BuildBack(card, packTypeId);
+            generatedCardAtlas = BakeFacesIntoAtlas(
+                originalCardAtlas,
+                front,
+                back);
+            Destroy(front);
+            Destroy(back);
             if (generatedCardAtlas == null)
             {
                 return;
@@ -287,9 +293,16 @@ namespace Rippies.Reveal
             return null;
         }
 
-        private static Texture2D BakeFaceIntoAtlas(Texture atlas, Texture2D face)
+        private static Texture2D BakeFacesIntoAtlas(
+            Texture atlas,
+            Texture2D front,
+            Texture2D back)
         {
-            if (atlas == null || face == null || atlas.width <= 0 || atlas.height <= 0)
+            if (atlas == null ||
+                front == null ||
+                back == null ||
+                atlas.width <= 0 ||
+                atlas.height <= 0)
             {
                 return null;
             }
@@ -318,12 +331,47 @@ namespace Rippies.Reveal
             result.ReadPixels(new Rect(0f, 0f, atlas.width, atlas.height), 0, 0);
 
             Color32[] atlasPixels = result.GetPixels32();
-            Color32[] facePixels = face.GetPixels32();
-            int left = Mathf.RoundToInt(atlas.width * 0.558f);
-            int bottom = Mathf.RoundToInt(atlas.height * 0.1f);
-            int width = Mathf.RoundToInt(atlas.width * 0.37f);
-            int height = Mathf.RoundToInt(atlas.height * 0.54f);
+            CompositeFace(
+                atlasPixels,
+                atlas.width,
+                atlas.height,
+                front,
+                0.548f,
+                0f,
+                0.39f,
+                0.765f);
+            CompositeFace(
+                atlasPixels,
+                atlas.width,
+                atlas.height,
+                back,
+                0.047f,
+                0f,
+                0.404f,
+                0.765f);
 
+            result.SetPixels32(atlasPixels);
+            result.Apply(true, false);
+            RenderTexture.active = previous;
+            RenderTexture.ReleaseTemporary(temporary);
+            return result;
+        }
+
+        private static void CompositeFace(
+            Color32[] atlasPixels,
+            int atlasWidth,
+            int atlasHeight,
+            Texture2D face,
+            float normalizedLeft,
+            float normalizedBottom,
+            float normalizedWidth,
+            float normalizedHeight)
+        {
+            Color32[] facePixels = face.GetPixels32();
+            int left = Mathf.RoundToInt(atlasWidth * normalizedLeft);
+            int bottom = Mathf.RoundToInt(atlasHeight * normalizedBottom);
+            int width = Mathf.RoundToInt(atlasWidth * normalizedWidth);
+            int height = Mathf.RoundToInt(atlasHeight * normalizedHeight);
             for (int y = 0; y < height; y++)
             {
                 int sourceY = Mathf.Clamp(
@@ -338,16 +386,18 @@ namespace Rippies.Reveal
                         face.width - 1);
                     int targetX = left + x;
                     int targetY = bottom + y;
-                    atlasPixels[targetY * atlas.width + targetX] =
+                    if (targetX < 0 ||
+                        targetX >= atlasWidth ||
+                        targetY < 0 ||
+                        targetY >= atlasHeight)
+                    {
+                        continue;
+                    }
+
+                    atlasPixels[targetY * atlasWidth + targetX] =
                         facePixels[sourceY * face.width + sourceX];
                 }
             }
-
-            result.SetPixels32(atlasPixels);
-            result.Apply(true, false);
-            RenderTexture.active = previous;
-            RenderTexture.ReleaseTemporary(temporary);
-            return result;
         }
 
         private void SampleAt(float time)

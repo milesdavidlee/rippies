@@ -52,7 +52,7 @@ namespace Rippies.Reveal
                 [':'] = new[] {"00000","00100","00100","00000","00100","00100","00000"}
             };
 
-        public static Texture2D Build(CardPayload card)
+        public static Texture2D BuildFront(CardPayload card)
         {
             Color accent = ParseColor(card.accentHex, ProductDesignLanguage.Cyan);
             Color deep = Color.Lerp(new Color(0.008f, 0.012f, 0.035f), accent, 0.22f);
@@ -60,6 +60,104 @@ namespace Rippies.Reveal
             var pixels = new Color32[Width * Height];
             int seed = StableHash(card.id + card.name + card.archetype);
 
+            FillGradient(pixels, deep, accent, new Vector2(0.5f, 0.54f), 0.2f);
+
+            FillRect(pixels, 0, 0, Width, 82, Color.Lerp(deep, accent, 0.12f));
+            FillRect(pixels, 0, 0, 8, Height, accent);
+            FillRect(pixels, Width - 3, 0, 3, Height, Color.Lerp(accent, text, 0.25f));
+            DrawCenteredText(
+                pixels,
+                "RIPPIES // " + card.rarityTier,
+                34,
+                2,
+                accent);
+            DrawCenteredText(
+                pixels,
+                card.name,
+                104,
+                card.name.Length > 10 ? 4 : 5,
+                text);
+            DrawCenteredText(pixels, card.archetype, 154, 2, Color.Lerp(text, accent, 0.45f));
+
+            DrawArt(pixels, 24, 194, 464, 306, seed, accent, deep);
+            StrokeRect(pixels, 24, 194, 464, 306, 3, Color.Lerp(accent, text, 0.22f));
+
+            DrawCenteredText(
+                pixels,
+                "ATK " + card.attack.ToString("00") + "   DEF " + card.defense.ToString("00"),
+                538,
+                3,
+                text);
+            DrawCenteredText(
+                pixels,
+                "SPD " + card.speed.ToString("00") + "   LUCK " + card.luck.ToString("00"),
+                576,
+                3,
+                text);
+            DrawCenteredText(pixels, card.grade, 638, 2, accent);
+            DrawCenteredText(pixels, ShortIdentifier(card.id), 692, 1, Color.Lerp(text, deep, 0.42f));
+
+            return CreateTexture(pixels, "AuthoredCardFront_" + card.id);
+        }
+
+        public static Texture2D BuildBack(CardPayload card, string packTypeId)
+        {
+            Color accent = ParseColor(card.accentHex, ProductDesignLanguage.Cyan);
+            Color deep = Color.Lerp(new Color(0.006f, 0.01f, 0.027f), accent, 0.18f);
+            Color text = ProductDesignLanguage.Text;
+            string packName = PackName(packTypeId);
+            string symbol = packName.Length == 0 ? "R" : packName.Substring(0, 1);
+            var pixels = new Color32[Width * Height];
+
+            FillGradient(pixels, deep, accent, new Vector2(0.52f, 0.42f), 0.24f);
+            DrawDiagonalBand(
+                pixels,
+                -180,
+                126,
+                76,
+                Color.Lerp(deep, accent, 0.42f));
+            DrawEllipseStroke(
+                pixels,
+                new Vector2(252f, 292f),
+                new Vector2(310f, 196f),
+                3f,
+                Color.Lerp(deep, accent, 0.72f));
+            DrawEllipseStroke(
+                pixels,
+                new Vector2(266f, 310f),
+                new Vector2(178f, 274f),
+                2f,
+                Color.Lerp(deep, accent, 0.55f));
+
+            DrawCenteredText(pixels, symbol, 248, 14, Color.Lerp(accent, text, 0.12f));
+            DrawCenteredText(pixels, "RIPPIES", 558, 4, text);
+            DrawCenteredText(pixels, packName + " PACK", 614, 3, accent);
+            DrawCenteredText(pixels, "FIRST EDITION", 666, 2, ProductDesignLanguage.TextMuted);
+
+            return CreateTexture(pixels, "AuthoredCardBack_" + card.id);
+        }
+
+        private static Texture2D CreateTexture(Color32[] pixels, string name)
+        {
+            var texture = new Texture2D(Width, Height, TextureFormat.RGBA32, true)
+            {
+                name = name,
+                filterMode = FilterMode.Trilinear,
+                wrapMode = TextureWrapMode.Clamp,
+                anisoLevel = 8
+            };
+            texture.SetPixels32(Rotate180(pixels));
+            texture.Apply(true, false);
+            return texture;
+        }
+
+        private static void FillGradient(
+            Color32[] pixels,
+            Color deep,
+            Color accent,
+            Vector2 glowCenter,
+            float strength)
+        {
             for (int y = 0; y < Height; y++)
             {
                 float vertical = y / (Height - 1f);
@@ -69,55 +167,72 @@ namespace Rippies.Reveal
                     float glow = Mathf.Clamp01(
                         1f - Vector2.Distance(
                             new Vector2(horizontal, vertical),
-                            new Vector2(0.5f, 0.56f)) * 1.35f);
-                    pixels[y * Width + x] = Color.Lerp(deep, accent, glow * 0.16f);
+                            glowCenter) * 1.35f);
+                    pixels[y * Width + x] =
+                        Color.Lerp(deep, accent, glow * strength);
                 }
             }
+        }
 
-            StrokeRect(pixels, 22, 22, 468, 724, 5, accent);
-            FillRect(pixels, 42, 42, 428, 58, Color.Lerp(deep, accent, 0.18f));
-            DrawCenteredText(
-                pixels,
-                "RIPPIES // " + card.rarityTier,
-                62,
-                2,
-                accent);
-            DrawCenteredText(
-                pixels,
-                card.name,
-                116,
-                card.name.Length > 10 ? 4 : 5,
-                text);
-            DrawCenteredText(pixels, card.archetype, 166, 2, Color.Lerp(text, accent, 0.45f));
-
-            DrawArt(pixels, 78, 208, 356, 250, seed, accent, deep);
-            StrokeRect(pixels, 78, 208, 356, 250, 4, Color.Lerp(accent, text, 0.22f));
-
-            DrawCenteredText(
-                pixels,
-                "ATK " + card.attack.ToString("00") + "   DEF " + card.defense.ToString("00"),
-                500,
-                3,
-                text);
-            DrawCenteredText(
-                pixels,
-                "SPD " + card.speed.ToString("00") + "   LUCK " + card.luck.ToString("00"),
-                536,
-                3,
-                text);
-            DrawCenteredText(pixels, card.grade, 594, 2, accent);
-            DrawCenteredText(pixels, ShortIdentifier(card.id), 642, 1, Color.Lerp(text, deep, 0.42f));
-
-            var texture = new Texture2D(Width, Height, TextureFormat.RGBA32, true)
+        private static void DrawDiagonalBand(
+            Color32[] pixels,
+            int startX,
+            int startY,
+            int thickness,
+            Color color)
+        {
+            for (int y = 0; y < Height; y++)
             {
-                name = "AuthoredCardFace_" + card.id,
-                filterMode = FilterMode.Trilinear,
-                wrapMode = TextureWrapMode.Clamp,
-                anisoLevel = 8
-            };
-            texture.SetPixels32(Rotate180(pixels));
-            texture.Apply(true, false);
-            return texture;
+                int centerX = startX + y - startY;
+                for (int offset = 0; offset < thickness; offset++)
+                {
+                    SetTopPixel(pixels, centerX + offset, y, color);
+                }
+            }
+        }
+
+        private static void DrawEllipseStroke(
+            Color32[] pixels,
+            Vector2 center,
+            Vector2 size,
+            float thickness,
+            Color color)
+        {
+            float outerX = size.x * 0.5f;
+            float outerY = size.y * 0.5f;
+            float innerX = Mathf.Max(1f, outerX - thickness);
+            float innerY = Mathf.Max(1f, outerY - thickness);
+            int left = Mathf.FloorToInt(center.x - outerX);
+            int right = Mathf.CeilToInt(center.x + outerX);
+            int top = Mathf.FloorToInt(center.y - outerY);
+            int bottom = Mathf.CeilToInt(center.y + outerY);
+            for (int y = top; y <= bottom; y++)
+            {
+                for (int x = left; x <= right; x++)
+                {
+                    float dx = x - center.x;
+                    float dy = y - center.y;
+                    float outer = dx * dx / (outerX * outerX) +
+                        dy * dy / (outerY * outerY);
+                    float inner = dx * dx / (innerX * innerX) +
+                        dy * dy / (innerY * innerY);
+                    if (outer <= 1f && inner >= 1f)
+                    {
+                        SetTopPixel(pixels, x, y, color);
+                    }
+                }
+            }
+        }
+
+        private static string PackName(string packTypeId)
+        {
+            string normalized = Normalize(packTypeId).Replace('-', ' ');
+            int separator = normalized.LastIndexOf('_');
+            return separator >= 0 && separator < normalized.Length - 1
+                ? normalized.Substring(separator + 1)
+                : string.IsNullOrWhiteSpace(normalized)
+                    ? "ORIGINAL"
+                    : normalized;
         }
 
         private static Color32[] Rotate180(Color32[] source)
