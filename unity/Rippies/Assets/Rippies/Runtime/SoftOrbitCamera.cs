@@ -77,7 +77,7 @@ namespace Rippies.Reveal
                 return;
             }
 
-            bool complete = controller.State == RipState.Complete && !controller.IsClosing;
+            bool complete = controller.State == RipState.Complete;
             if (!complete)
             {
                 wasComplete = false;
@@ -117,6 +117,23 @@ namespace Rippies.Reveal
                     shellPresentedPosition = packShell.localPosition;
                     shellPresentedRotation = packShell.localRotation;
                 }
+            }
+
+            if (controller.IsClosing)
+            {
+                desiredYaw = 0f;
+                desiredPitch = 0f;
+                currentYaw = Mathf.Lerp(currentYaw, 0f, Damp());
+                currentPitch = Mathf.Lerp(currentPitch, 0f, Damp());
+                targetCamera.transform.position = Vector3.Lerp(
+                    targetCamera.transform.position,
+                    focusedCameraPosition,
+                    Damp());
+                targetCamera.transform.rotation = Quaternion.Slerp(
+                    targetCamera.transform.rotation,
+                    focusedCameraRotation,
+                    Damp());
+                return;
             }
 
             bool dragging = false;

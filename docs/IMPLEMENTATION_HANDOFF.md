@@ -155,6 +155,12 @@ authored motion. At the settle frame the authored card is detached without
 rescaling, wrapped in a pivot at its renderer center, and remains under the
 same camera framing for direct touch inspection.
 
+When the user chooses **View collection**, inspection input stops but the
+focused camera stays locked through Unity's closing beat. The presentation
+pivot then moves in camera-space down and away—never in the licensed model's
+rotated local axes—before `collectionRequested` starts the native crossfade
+back to the React Native card grid.
+
 Before every subsequent reveal, the card is restored to its authored parent
 and exact original local scale before a new payload is applied. This reset
 ordering is required because Unity remains resident between pack openings; it

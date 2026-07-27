@@ -400,9 +400,25 @@ namespace Rippies.Reveal
         private IEnumerator CloseSequence(PackRipController owner)
         {
             Transform closingCard = interactiveCard;
-            Vector3 startingPosition = closingCard == null ? Vector3.zero : closingCard.localPosition;
+            Vector3 startingPosition = closingCard == null ? Vector3.zero : closingCard.position;
             Quaternion startingRotation = closingCard == null ? Quaternion.identity : closingCard.localRotation;
             Vector3 startingScale = closingCard == null ? Vector3.one : closingCard.localScale;
+            Vector3 endingPosition = startingPosition;
+
+            if (closingCard != null)
+            {
+                Camera sceneCamera = Camera.main;
+                Vector3 screenDown = sceneCamera == null
+                    ? Vector3.down
+                    : -sceneCamera.transform.up;
+                Vector3 awayFromViewer = sceneCamera == null
+                    ? Vector3.forward
+                    : sceneCamera.transform.forward;
+                float cardHeight = GetRendererHeight(closingCard);
+                endingPosition +=
+                    screenDown * cardHeight * 0.34f +
+                    awayFromViewer * cardHeight * 0.38f;
+            }
 
             yield return Tween(ProductDesignLanguage.StandardSeconds, value =>
             {
@@ -411,17 +427,17 @@ namespace Rippies.Reveal
 
                 if (closingCard != null)
                 {
-                    closingCard.localPosition = Vector3.Lerp(
+                    closingCard.position = Vector3.Lerp(
                         startingPosition,
-                        startingPosition + new Vector3(0f, -0.42f, 0.9f),
+                        endingPosition,
                         eased);
                     closingCard.localRotation = Quaternion.Slerp(
                         startingRotation,
-                        startingRotation * Quaternion.Euler(5f, 18f, -3f),
+                        startingRotation * Quaternion.Euler(3f, 12f, -2f),
                         eased);
                     closingCard.localScale = Vector3.Lerp(
                         startingScale,
-                        startingScale * 0.88f,
+                        startingScale * 0.82f,
                         eased);
                 }
 
@@ -433,6 +449,26 @@ namespace Rippies.Reveal
 
             owner.NotifyCollectionRequested();
             sequence = null;
+        }
+
+        private static float GetRendererHeight(Transform target)
+        {
+            Bounds bounds = new Bounds(target.position, Vector3.one * 0.01f);
+            bool hasBounds = false;
+            foreach (Renderer renderer in target.GetComponentsInChildren<Renderer>(true))
+            {
+                if (!hasBounds)
+                {
+                    bounds = renderer.bounds;
+                    hasBounds = true;
+                }
+                else
+                {
+                    bounds.Encapsulate(renderer.bounds);
+                }
+            }
+
+            return hasBounds ? Mathf.Max(bounds.size.y, 0.01f) : 1f;
         }
 
         private Transform ResolveInteractiveCard(PackRipController owner)
