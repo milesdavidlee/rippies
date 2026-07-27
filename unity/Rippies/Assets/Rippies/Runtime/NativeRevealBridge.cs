@@ -7,10 +7,24 @@ namespace Rippies.Reveal
     public sealed class NativeRevealBridge : MonoBehaviour
     {
         [SerializeField] private PackRipController controller;
+        private PackSelectionFlow selectionFlow;
+
+        private void Awake()
+        {
+            selectionFlow = GetComponent<PackSelectionFlow>();
+        }
 
         public void PrepareReveal(string payloadJson)
         {
-            controller?.PrepareReveal(RevealPayload.FromJson(payloadJson));
+            RevealPayload payload = RevealPayload.FromJson(payloadJson);
+            if (selectionFlow != null)
+            {
+                selectionFlow.PrepareExternalReveal(payload);
+            }
+            else
+            {
+                controller?.PrepareReveal(payload);
+            }
         }
 
         public void BeginReveal(string unused)
@@ -18,11 +32,10 @@ namespace Rippies.Reveal
             controller?.BeginReveal();
         }
 
-public void SkipReveal(string unused)
+        public void SkipReveal(string unused)
         {
             controller?.SkipReveal();
         }
-
 
         public void PauseReveal(string paused)
         {

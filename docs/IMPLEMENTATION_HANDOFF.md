@@ -9,7 +9,9 @@ Rippies is designed as a hybrid product:
 - The normal mobile application owns the collection, store, account, inventory, navigation, and backend communication.
 - Unity is embedded as a full-screen native view only for opening a selected pack and inspecting its revealed card.
 
-The current working implementation is a Unity vertical slice. It intentionally includes a product-style 3D pack grid so the complete interaction can be tested before the native shell exists.
+The current working implementation includes the iOS React Native product shell
+and the Unity vertical slice as a real Unity-as-a-Library handoff. Android is
+intentionally out of scope for the current product pass.
 
 ## Current working state
 
@@ -33,6 +35,13 @@ Assets/Rippies/Scenes/PackReveal.unity
 
 Implemented:
 
+- Bare React Native iOS shell with Discover, Collection, and Profile tabs.
+- Deterministic fake inventory, immutable reveal receipts, and resume-safe presentation state.
+- Automatic simulator Unity export/build/embed phase in the iOS app target.
+- Native Objective-C++ host that warms Unity behind React Native.
+- Crossfade to Unity only after the selected reveal emits `sceneReady`.
+- Native Unity-to-app event delivery for `tearStarted`, `cardVisible`, and `revealComplete`.
+- Crossfade back to the React Native completion surface after the animation.
 - Six animated 3D foil packs in a touch/click grid.
 - Independent themes and coordinated palettes.
 - Selected pack animates into the reveal anchor.
@@ -46,17 +55,19 @@ Implemented:
 - Soft, clamped drag orbit and continuous idle motion.
 - Return from completed reveal to the pack grid.
 
-The last verified flow was:
+The last verified iOS simulator flow was:
 
 ```text
-Browse
-  -> select Chrome/Solar pack
-  -> selected pack moves to hero position
-  -> bridge prepares rippies_chrome or rippies_solar payload
-  -> Unity Ready
-  -> tear/reveal
-  -> Complete
-  -> return to Browse
+Collection tab
+  -> select an unopened fake-data pack
+  -> React Native restores its immutable receipt
+  -> Unity warms behind the native pack surface
+  -> selected payload reaches NativeRevealBridge
+  -> matching Unity pack crossfades full screen
+  -> swipe the seal
+  -> Unity animates strip, pack, glow, and assigned card
+  -> revealComplete crossfades back to React Native
+  -> View collection opens the Cards segment
 ```
 
 ## Important source files
@@ -169,7 +180,10 @@ Production must validate the signature or trust a payload already validated by t
 
 ## Product-shell implementation
 
-The Unity `PackSelectionFlow` is the interaction reference, not the final ownership boundary.
+The Unity `PackSelectionFlow` remains the interaction reference, not the
+ownership boundary. The iOS shell now implements this boundary with fake data;
+replace the fake receipt store with backend APIs without moving assignment logic
+into Unity.
 
 Production shell responsibilities:
 
@@ -184,7 +198,34 @@ Production shell responsibilities:
 - Route lifecycle, mute, skip, and recovery actions.
 - Unmount or park Unity after `revealComplete`.
 
-The cleanest initial stack, if no mobile shell exists, is bare React Native with Swift and Kotlin host modules. A managed-only Expo project is not recommended because Unity as a Library requires native iOS and Android project changes.
+The checked-in mobile stack is bare React Native. A managed-only Expo project
+is not recommended because Unity as a Library requires native iOS project
+changes.
+
+## Build and test the iOS product
+
+Generated Unity exports remain local under `unity/Rippies/Build` and are ignored
+by Git.
+
+From the repository root:
+
+```sh
+mobile/ios/scripts/export-unity-ios.sh simulator
+cd mobile
+npm start
+```
+
+In a second terminal:
+
+```sh
+cd mobile
+npm run ios
+```
+
+The Xcode target runs `mobile/ios/scripts/embed-unity.sh`, builds
+`UnityFramework`, embeds its `Data` directory, and signs the simulator
+framework. If no local export exists, the app keeps the React Native fallback
+so normal shell work remains possible.
 
 ## VS Code and Codex setup
 
@@ -255,10 +296,7 @@ Before merging Unity reveal work:
 
 ## Next implementation milestone
 
-1. Create the bare mobile shell with checked-in `ios` and `android` projects.
-2. Export Unity as a Library for iOS and Android.
-3. Implement `PackRevealView` on each platform.
-4. Recreate the collection grid in the shell.
-5. Crossfade the selected native pack into Unity after `sceneReady`.
-6. Add app lifecycle recovery and idempotent reveal restoration.
-7. Connect real inventory and reveal APIs.
+1. Replace fake inventory and receipts with authenticated backend APIs.
+2. Add production asset-version download and cache management.
+3. Reduce the Unity player size and measure warm-start/memory behavior on a physical iPhone.
+4. Continue visual and motion refinement in the Unity source scene.

@@ -6,11 +6,18 @@ namespace Rippies.Reveal
     {
         [SerializeField] private PackRipController controller;
 
+        private bool productMode;
         private GUIStyle titleStyle;
         private GUIStyle labelStyle;
         private GUIStyle buttonStyle;
 
-private void OnGUI()
+        public void SetProductMode(bool enabled)
+        {
+            productMode = enabled;
+            this.enabled = enabled;
+        }
+
+        private void OnGUI()
         {
             if (controller == null)
             {
@@ -18,6 +25,12 @@ private void OnGUI()
             }
 
             EnsureStyles();
+            if (productMode)
+            {
+                DrawProductPrompt();
+                return;
+            }
+
             float width = Mathf.Min(Screen.width - 40f, 520f);
             Rect panel = new Rect((Screen.width - width) * 0.5f, 24f, width, 176f);
             GUI.Box(panel, GUIContent.none);
@@ -48,6 +61,44 @@ private void OnGUI()
             {
                 controller.PrepareRandomReveal();
             }
+        }
+
+        private void DrawProductPrompt()
+        {
+            float scale = Mathf.Max(1f, Screen.width / 430f);
+            Matrix4x4 previousMatrix = GUI.matrix;
+            GUI.matrix = Matrix4x4.Scale(new Vector3(scale, scale, 1f));
+
+            float logicalWidth = Screen.width / scale;
+            float logicalHeight = Screen.height / scale;
+            float panelWidth = Mathf.Min(logicalWidth - 48f, 342f);
+            float panelX = (logicalWidth - panelWidth) * 0.5f;
+            float panelY = logicalHeight - 132f;
+            string instruction = controller.State == RipState.Complete
+                ? "REVEAL SECURED"
+                : "SWIPE THE SEAL  →";
+
+            var productLabel = new GUIStyle(labelStyle)
+            {
+                fontSize = 13,
+                fontStyle = FontStyle.Bold,
+                normal = { textColor = new Color(0.88f, 0.92f, 0.96f) }
+            };
+            GUI.Label(
+                new Rect(panelX, panelY, panelWidth, 24f),
+                instruction,
+                productLabel);
+
+            Rect track = new Rect(panelX, panelY + 34f, panelWidth, 3f);
+            Color previousColor = GUI.color;
+            GUI.color = new Color(1f, 1f, 1f, 0.16f);
+            GUI.DrawTexture(track, Texture2D.whiteTexture);
+            GUI.color = new Color(0.18f, 0.95f, 0.72f, 0.95f);
+            GUI.DrawTexture(
+                new Rect(track.x, track.y, track.width * controller.TearProgress, track.height),
+                Texture2D.whiteTexture);
+            GUI.color = previousColor;
+            GUI.matrix = previousMatrix;
         }
 
         private void EnsureStyles()

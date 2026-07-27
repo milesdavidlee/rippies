@@ -36,6 +36,7 @@ namespace Rippies.Reveal
         private FlowState state;
         private PackOption selected;
         private float transitionElapsed;
+        private bool externalRevealRequested;
         private GUIStyle eyebrowStyle;
         private GUIStyle titleStyle;
         private GUIStyle subtitleStyle;
@@ -103,7 +104,10 @@ namespace Rippies.Reveal
         {
             state = FlowState.Initializing;
             yield return null;
-            ShowBrowse();
+            if (!externalRevealRequested)
+            {
+                ShowBrowse();
+            }
         }
 
         private void Update()
@@ -142,11 +146,34 @@ namespace Rippies.Reveal
             ShowBrowse();
         }
 
+        public void PrepareExternalReveal(RevealPayload payload)
+        {
+            externalRevealRequested = true;
+            CleanupGrid();
+            selected = null;
+
+            if (revealPack != null)
+            {
+                revealPack.gameObject.SetActive(true);
+            }
+
+            SetPackLabelsActive(true);
+            if (revealOverlay != null)
+            {
+                revealOverlay.SetProductMode(true);
+            }
+
+            controller?.PrepareReveal(payload);
+            state = FlowState.Reveal;
+        }
+
         private void ShowBrowse()
         {
+            externalRevealRequested = false;
             CleanupGrid();
             if (revealOverlay != null)
             {
+                revealOverlay.SetProductMode(false);
                 revealOverlay.enabled = false;
             }
 

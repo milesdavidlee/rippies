@@ -69,6 +69,7 @@ namespace Rippies.Reveal
             payload = revealPayload ?? DemoCardFactory.CreateRandom();
             cardPresenter?.Apply(payload.card);
             ApplyPackPalette(payload.card);
+            ApplyPackIdentity(payload.packTypeId);
             ResetReveal();
             SetState(RipState.Ready);
             Emit("sceneReady", payload.revealId);
@@ -204,6 +205,25 @@ namespace Rippies.Reveal
             {
                 subtitleText.color = Color.Lerp(Color.white, accent, 0.32f);
             }
+        }
+
+        private void ApplyPackIdentity(string packTypeId)
+        {
+            Transform subtitle = transform.Find("PackSubtitle");
+            TextMesh subtitleText = subtitle == null ? null : subtitle.GetComponent<TextMesh>();
+            if (subtitleText == null || string.IsNullOrWhiteSpace(packTypeId))
+            {
+                return;
+            }
+
+            string label = packTypeId;
+            int separator = label.LastIndexOf('_');
+            if (separator >= 0 && separator < label.Length - 1)
+            {
+                label = label.Substring(separator + 1);
+            }
+
+            subtitleText.text = label.Replace('-', ' ').ToUpperInvariant() + " PACK";
         }
 
         private static void ApplyPalette(

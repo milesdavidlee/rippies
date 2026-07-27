@@ -1,22 +1,17 @@
 #import <React/RCTBridgeModule.h>
 #import <React/RCTEventEmitter.h>
 #import <UIKit/UIKit.h>
-#import <dlfcn.h>
 #import <objc/message.h>
-
-typedef void (*UnitySendMessageFunction)(
-    const char *objectName,
-    const char *methodName,
-    const char *message);
 
 @interface RippiesUnityReveal : RCTEventEmitter <RCTBridgeModule>
 
 @property(nonatomic, strong) id unityFramework;
 @property(nonatomic, weak) UIWindow *reactWindow;
+@property(nonatomic, copy) NSString *pendingRevealPayload;
+@property(nonatomic, copy) NSString *pendingRevealId;
+@property(nonatomic, assign) BOOL unitySceneLoaded;
 
 @end
-
-static __weak RippiesUnityReveal *RippiesRevealEmitter;
 
 @implementation RippiesUnityReveal
 
@@ -31,9 +26,18 @@ RCT_EXPORT_MODULE();
 {
   self = [super init];
   if (self) {
-    RippiesRevealEmitter = self;
+    [[NSNotificationCenter defaultCenter]
+        addObserver:self
+           selector:@selector(handleUnityEventNotification:)
+               name:@"RippiesUnityRevealEventNotification"
+             object:nil];
   }
   return self;
+}
+
+- (void)dealloc
+{
+  [[NSNotificationCenter defaultCenter] removeObserver:self];
 }
 
 - (NSArray<NSString *> *)supportedEvents
@@ -138,9 +142,9 @@ RCT_EXPORT_MODULE();
     return NO;
   }
 
-  UnitySendMessageFunction sendMessage =
-      (UnitySendMessageFunction)dlsym(RTLD_DEFAULT, "UnitySendMessage");
-  if (!sendMessage) {
+  SEL sendMessageSelector =
+      NSSelectorFromString(@"sendMessageToGOWithName:functionName:message:");
+  if (![self.unityFramework respondsToSelector:sendMessageSelector]) {
     if (error) {
       *error = [NSError
           errorWithDomain:@"RippiesUnity"
@@ -153,9 +157,25 @@ RCT_EXPORT_MODULE();
     return NO;
   }
 
-  sendMessage(
-      "NativeRevealBridge", method.UTF8String, (value ?: @"").UTF8String);
+  ((void (*)(id, SEL, const char *, const char *, const char *))objc_msgSend)(
+      self.unityFramework,
+      sendMessageSelector,
+      "NativeRevealBridge",
+      method.UTF8String,
+      (value ?: @"").UTF8String);
   return YES;
+}
+
+- (UIWindow *)unityWindow
+{
+  SEL appControllerSelector = NSSelectorFromString(@"appController");
+  id appController = ((id(*)(id, SEL))objc_msgSend)(
+      self.unityFramework, appControllerSelector);
+  if ([appController respondsToSelector:@selector(window)]) {
+    return ((UIWindow * (*)(id, SEL))objc_msgSend)(
+        appController, @selector(window));
+  }
+  return nil;
 }
 
 - (void)showUnityWindow
@@ -167,11 +187,33 @@ RCT_EXPORT_MODULE();
   if ([self.unityFramework respondsToSelector:showWindow]) {
     ((void (*)(id, SEL))objc_msgSend)(self.unityFramework, showWindow);
   }
+  UIWindow *window = [self unityWindow];
+  window.alpha = 0.0;
+  [UIView animateWithDuration:0.24
+                   animations:^{
+                     window.alpha = 1.0;
+                   }];
 }
 
 - (void)restoreReactWindow
 {
+  self.reactWindow.alpha = 1.0;
   [self.reactWindow makeKeyAndVisible];
+}
+
+- (void)restoreReactWindowAnimated
+{
+  UIWindow *unityWindow = [self unityWindow];
+  [self.reactWindow makeKeyAndVisible];
+  self.reactWindow.alpha = 0.0;
+  [UIView animateWithDuration:0.24
+      animations:^{
+        self.reactWindow.alpha = 1.0;
+        unityWindow.alpha = 0.0;
+      }
+      completion:^(__unused BOOL finished) {
+        unityWindow.alpha = 1.0;
+      }];
 }
 
 RCT_REMAP_METHOD(
@@ -181,12 +223,35 @@ RCT_REMAP_METHOD(
     : (RCTPromiseRejectBlock)reject)
 {
   dispatch_async(dispatch_get_main_queue(), ^{
+    NSData *payloadData = [payloadJson dataUsingEncoding:NSUTF8StringEncoding];
+    NSDictionary *payload = payloadData
+        ? [NSJSONSerialization JSONObjectWithData:payloadData
+                                         options:0
+                                           error:nil]
+        : nil;
+    self.pendingRevealPayload = payloadJson;
+    self.pendingRevealId =
+        [payload[@"revealId"] isKindOfClass:NSString.class]
+        ? payload[@"revealId"]
+        : nil;
+
     NSError *error = nil;
-    if ([self sendMessage:@"PrepareReveal" value:payloadJson error:&error]) {
-      resolve(nil);
-    } else {
+    if (![self prepareUnity:&error]) {
       reject(@"unity_unavailable", error.localizedDescription, error);
+      return;
     }
+
+    if (self.unitySceneLoaded) {
+      NSLog(@"[RippiesUnity] Sending reveal payload to loaded scene");
+      if (![self sendMessage:@"PrepareReveal"
+                       value:self.pendingRevealPayload
+                       error:&error]) {
+        reject(@"unity_message_failed", error.localizedDescription, error);
+        return;
+      }
+      self.pendingRevealPayload = nil;
+    }
+    resolve(nil);
   });
 }
 
@@ -260,6 +325,7 @@ RCT_REMAP_METHOD(
 
 - (void)receiveUnityEvent:(NSString *)payload
 {
+  NSLog(@"[RippiesUnity] Native host received %@", payload);
   NSData *data = [payload dataUsingEncoding:NSUTF8StringEncoding];
   NSDictionary *event = data
       ? [NSJSONSerialization JSONObjectWithData:data options:0 error:nil]
@@ -268,26 +334,41 @@ RCT_REMAP_METHOD(
     return;
   }
 
-  if ([event[@"eventName"] isEqualToString:@"sceneReady"]) {
+  NSString *eventName = event[@"eventName"];
+  if ([eventName isEqualToString:@"sceneReady"]) {
+    self.unitySceneLoaded = YES;
+    if (self.pendingRevealPayload &&
+        ![event[@"value"] isEqualToString:self.pendingRevealId]) {
+      NSError *error = nil;
+      NSString *queuedPayload = self.pendingRevealPayload;
+      self.pendingRevealPayload = nil;
+      NSLog(@"[RippiesUnity] Sending queued reveal payload after initial scene");
+      if (![self sendMessage:@"PrepareReveal" value:queuedPayload error:&error]) {
+        NSLog(@"[RippiesUnity] Queued reveal failed: %@", error);
+      }
+      return;
+    }
     [self showUnityWindow];
   }
-  if ([event[@"eventName"] isEqualToString:@"revealComplete"]) {
-    // React Native owns the collection receipt and final return action. Yield
-    // immediately so its completion surface is visible above the same shell.
-    [self restoreReactWindow];
-  }
   [self sendEventWithName:@"RippiesUnityRevealEvent" body:event];
+  if ([eventName isEqualToString:@"revealComplete"]) {
+    // Give React Native one frame to commit the receipt, then crossfade back
+    // to the collection-owned completion surface.
+    dispatch_after(
+        dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.12 * NSEC_PER_SEC)),
+        dispatch_get_main_queue(),
+        ^{
+          [self restoreReactWindowAnimated];
+        });
+  }
+}
+
+- (void)handleUnityEventNotification:(NSNotification *)notification
+{
+  NSString *payload = notification.userInfo[@"payload"];
+  if ([payload isKindOfClass:NSString.class]) {
+    [self receiveUnityEvent:payload];
+  }
 }
 
 @end
-
-extern "C" void RippiesUnityEvent(const char *payload)
-{
-  if (!payload) {
-    return;
-  }
-  NSString *json = [NSString stringWithUTF8String:payload];
-  dispatch_async(dispatch_get_main_queue(), ^{
-    [RippiesRevealEmitter receiveUnityEvent:json];
-  });
-}

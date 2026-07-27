@@ -13,7 +13,7 @@ reveal when a local `UnityFramework.framework` export is embedded.
 - Discover, Collection, and Profile tabs with a shared visual language.
 - Six deterministic fake inventory records with assigned card payloads.
 - Selectable unopened packs and a real Cards collection segment.
-- A full-screen local reveal simulator with a swipe/tap tear gesture.
+- A full-screen local fallback plus the real embedded Unity tear animation.
 - Persistent reveal receipts and opened-pack state through AsyncStorage.
 - Resume-safe behavior: the assigned card and presentation state never reroll.
 - An iOS Objective-C++ host module matching the Unity bridge contract.
@@ -47,15 +47,24 @@ bundle exec pod install --project-directory=ios
 1. Run `npm start` in `mobile/`.
 2. In another terminal, run `npm run ios`.
 3. Open **Collection** and select an unopened pack.
-4. Swipe the reveal track left-to-right, or tap it for the accessible fallback.
+4. Swipe the Unity seal left-to-right. In `LOCAL REVEAL` fallback mode, swipe or
+   tap the reveal track.
 5. Select **View collection** and verify the card appears under **Cards**.
 6. Reopen the same receipt before confirming, or restart the app, to verify the
    assigned card is restored.
 7. Use **Profile → Reset fake collection** to replay from a clean state.
 
-The iOS Simulator intentionally displays `LOCAL REVEAL`. That flow exercises
-the same receipt contract and app transitions without requiring a generated
-Unity iOS export.
+To test the real Unity handoff, export the simulator player before running the
+app:
+
+```sh
+ios/scripts/export-unity-ios.sh simulator
+```
+
+The Xcode target then builds and embeds `UnityFramework` automatically. It
+displays `UNITY CONNECTED`, crossfades to the selected Unity pack after
+`sceneReady`, and returns after `revealComplete`. Without an export, the app
+displays `LOCAL REVEAL` and uses the React Native fallback.
 
 ## Unity integration boundary
 
@@ -73,9 +82,7 @@ The iOS host:
 5. Returns to the React Native completion surface after `revealComplete`.
 6. Restores the React Native window on disposal or interruption.
 
-Generated Unity Xcode exports remain local and must not be committed. For a
-device integration build, export `unity/Rippies` as an iOS Unity-as-a-Library
-project, add its `UnityFramework` target to the local Xcode workspace, then
-link and embed `UnityFramework.framework` in `RippiesMobile`. The TypeScript
-coordinator detects it automatically; otherwise it keeps using the local
-simulator.
+Generated Unity Xcode exports remain local and must not be committed. Use
+`ios/scripts/export-unity-ios.sh device` for a physical-device export. The
+checked-in Xcode build phase builds, embeds, copies Unity `Data`, and signs the
+framework for the active iOS platform.
