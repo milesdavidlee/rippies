@@ -2,16 +2,19 @@
 
 Rippies is a mobile trading-card product with a native collection and commerce shell plus an embedded Unity 6 pack-opening experience.
 
-The repository includes the working Unity vertical slice and a bare React
-Native product shell:
+The repository includes the working Unity vertical slice and an implemented
+iOS React Native product pass:
 
+- Discover, Collection, and Profile product tabs.
+- Persistent deterministic fake inventory and reveal receipts.
+- Unopened-pack browsing, local reveal fallback, and a collected-cards view.
 - A six-pack collection grid with mouse and touch selection.
 - A selected-pack transition into the reveal position.
 - A JSON handoff through `NativeRevealBridge`.
 - Procedural foil-pack geometry and left-to-right tearing.
 - A detached top strip, falling pack, card reveal, rarity glow, and inspect orbit.
 - Randomized card content and coordinated pack/card palettes.
-- Checked-in Swift and Kotlin host projects for future Unity as a Library integration.
+- A checked-in Objective-C++ iOS Unity-as-a-Library host bridge.
 - A typed React Native bridge contract matching the Unity reveal events.
 
 ## Repository layout
@@ -54,8 +57,8 @@ npm test
 npm run ios
 ```
 
-See [mobile/README.md](mobile/README.md) for Android setup and the Unity host
-integration boundary.
+See [mobile/README.md](mobile/README.md) for the fake-data test flow and the
+Unity host integration boundary. Android is intentionally deferred.
 
 ## Primary development environment
 

@@ -1,0 +1,42 @@
+{
+  "color": {
+    "canvas": "#07090F",
+    "surface": "#11141E",
+    "surfaceRaised": "#191D29",
+    "line": "#2A3040",
+    "text": "#F7F8FC",
+    "textMuted": "#9DA4B5",
+    "cyan": "#70E6FF",
+    "success": "#77F5B0",
+    "warning": "#FFC56B"
+  },
+  "space": {
+    "xs": 6,
+    "sm": 10,
+    "md": 16,
+    "lg": 24,
+    "xl": 32
+  },
+  "radius": {
+    "sm": 12,
+    "md": 18,
+    "lg": 26,
+    "pill": 999
+  },
+  "motion": {
+    "quick": 180,
+    "standard": 360,
+    "hero": 620,
+    "reveal": 900
+  },
+  "pack": {
+    "aspectRatio": 0.66,
+    "heroWidth": 232,
+    "chrome": "#68E4FF",
+    "solar": "#FFB84D",
+    "prism": "#B96CFF",
+    "ember": "#FF6767",
+    "tide": "#4F8CFF",
+    "verdant": "#67E59A"
+  }
+}

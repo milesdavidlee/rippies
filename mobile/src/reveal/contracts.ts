@@ -23,6 +23,12 @@ export type RevealPayload = {
   receiptSignature: string;
 };
 
+export type RevealReceipt = {
+  payload: RevealPayload;
+  preparedAt: string;
+  presentationState: 'prepared' | 'started' | 'cardVisible' | 'complete';
+};
+
 export type UnityRevealEventName =
   | 'sceneReady'
   | 'tearStarted'

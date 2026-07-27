@@ -3,6 +3,7 @@ import {NativeEventEmitter, NativeModules} from 'react-native';
 import type {RevealPayload, UnityRevealEvent} from '../reveal/contracts';
 
 type UnityRevealNativeModule = {
+  isAvailable?: boolean;
   prepareReveal(payloadJson: string): Promise<void>;
   beginReveal(): Promise<void>;
   skipReveal(): Promise<void>;
@@ -26,6 +27,9 @@ function requireNativeModule(): UnityRevealNativeModule {
 }
 
 export const UnityRevealBridge = {
+  isAvailable() {
+    return nativeModule?.isAvailable === true;
+  },
   prepareReveal(payload: RevealPayload) {
     return requireNativeModule().prepareReveal(JSON.stringify(payload));
   },

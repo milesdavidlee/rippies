@@ -1,15 +1,30 @@
-# Rippies mobile shell
+# Rippies iOS product pass
 
 This is a bare React Native `0.86.2` application with checked-in Swift and
-Kotlin projects. React Native owns collection, commerce, inventory,
-navigation, API communication, and recovery. Unity will be embedded only as a
-full-screen pack reveal and card-inspection view.
+Kotlin projects. The current implemented target is iOS; Android is intentionally
+out of scope for this pass.
+
+React Native owns the product shell, navigation, fake inventory, card
+collection, and reveal recovery. Unity owns the full-screen physical pack
+reveal when a local `UnityFramework.framework` export is embedded.
+
+## What is implemented
+
+- Discover, Collection, and Profile tabs with a shared visual language.
+- Six deterministic fake inventory records with assigned card payloads.
+- Selectable unopened packs and a real Cards collection segment.
+- A full-screen local reveal simulator with a swipe/tap tear gesture.
+- Persistent reveal receipts and opened-pack state through AsyncStorage.
+- Resume-safe behavior: the assigned card and presentation state never reroll.
+- An iOS Objective-C++ host module matching the Unity bridge contract.
+- Automatic local fallback when the Unity framework is not embedded.
+- Shared color, spacing, radius, motion, and pack tokens in
+  `../shared/rippies-design-tokens.json`.
 
 ## Requirements
 
 - Node.js `22.11` or newer
 - Xcode and CocoaPods for iOS
-- Android Studio and JDK 17 for Android
 
 ## Commands
 
@@ -18,7 +33,6 @@ npm install
 npm test
 npm run lint
 npm run ios
-npm run android
 ```
 
 For iOS, install Ruby dependencies and pods before the first build:
@@ -28,18 +42,40 @@ bundle install
 bundle exec pod install --project-directory=ios
 ```
 
+## Test the fake-data product flow
+
+1. Run `npm start` in `mobile/`.
+2. In another terminal, run `npm run ios`.
+3. Open **Collection** and select an unopened pack.
+4. Swipe the reveal track left-to-right, or tap it for the accessible fallback.
+5. Select **View collection** and verify the card appears under **Cards**.
+6. Reopen the same receipt before confirming, or restart the app, to verify the
+   assigned card is restored.
+7. Use **Profile → Reset fake collection** to replay from a clean state.
+
+The iOS Simulator intentionally displays `LOCAL REVEAL`. That flow exercises
+the same receipt contract and app transitions without requiring a generated
+Unity iOS export.
+
 ## Unity integration boundary
 
 `src/reveal/contracts.ts` mirrors the immutable reveal payload and Unity event
 contract in `../docs/IMPLEMENTATION_HANDOFF.md`.
-`src/bridge/UnityRevealBridge.ts` is the TypeScript-facing contract for the
-future thin Swift and Kotlin host modules.
+`src/bridge/UnityRevealBridge.ts` is the TypeScript-facing contract.
+`ios/RippiesMobile/RippiesUnityReveal.mm` is the thin iOS host implementation.
 
-The native implementation must:
+The iOS host:
 
-1. Restore or request the server-assigned reveal payload.
-2. Mount and warm the Unity view.
-3. Send `PrepareReveal(payloadJson)`.
-4. Present only after `sceneReady`.
-5. Treat a reveal as complete only after `revealComplete`.
-6. Preserve the receipt for idempotent recovery after interruption.
+1. Dynamically finds an embedded `UnityFramework.framework`.
+2. Warms Unity while the React Native shell remains visible.
+3. Sends `PrepareReveal(payloadJson)`.
+4. Promotes Unity only after `sceneReady`.
+5. Returns to the React Native completion surface after `revealComplete`.
+6. Restores the React Native window on disposal or interruption.
+
+Generated Unity Xcode exports remain local and must not be committed. For a
+device integration build, export `unity/Rippies` as an iOS Unity-as-a-Library
+project, add its `UnityFramework` target to the local Xcode workspace, then
+link and embed `UnityFramework.framework` in `RippiesMobile`. The TypeScript
+coordinator detects it automatically; otherwise it keeps using the local
+simulator.
