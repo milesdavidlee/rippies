@@ -1,5 +1,7 @@
 using UnityEngine;
 using UnityEngine.InputSystem;
+using UnityEngine.InputSystem.EnhancedTouch;
+using Touch = UnityEngine.InputSystem.EnhancedTouch.Touch;
 
 namespace Rippies.Reveal
 {
@@ -9,10 +11,10 @@ namespace Rippies.Reveal
         [SerializeField] private Transform card;
         [SerializeField] private Transform packShell;
         [SerializeField] private PackRipController controller;
-        [SerializeField] private float maximumYaw = 6f;
-        [SerializeField] private float maximumPitch = 4f;
-        [SerializeField] private float dragSensitivity = 0.075f;
-        [SerializeField] private float smoothing = 7f;
+        [SerializeField] private float maximumYaw = 72f;
+        [SerializeField] private float maximumPitch = 24f;
+        [SerializeField] private float dragSensitivity = 0.18f;
+        [SerializeField] private float smoothing = 9f;
 
         private Vector3 cameraStartPosition;
         private Quaternion cameraStartRotation;
@@ -47,7 +49,7 @@ namespace Rippies.Reveal
                 return;
             }
 
-            bool complete = controller.State == RipState.Complete;
+            bool complete = controller.State == RipState.Complete && !controller.IsClosing;
             if (!complete)
             {
                 wasComplete = false;
@@ -78,10 +80,22 @@ namespace Rippies.Reveal
                 }
             }
 
-            bool dragging = Mouse.current != null && Mouse.current.leftButton.isPressed;
+            bool dragging = false;
+            Vector2 delta = Vector2.zero;
+            if (Touch.activeTouches.Count > 0)
+            {
+                Touch touch = Touch.activeTouches[0];
+                dragging = touch.isInProgress;
+                delta = touch.delta;
+            }
+            else if (Mouse.current != null && Mouse.current.leftButton.isPressed)
+            {
+                dragging = true;
+                delta = Mouse.current.delta.ReadValue();
+            }
+
             if (dragging)
             {
-                Vector2 delta = Mouse.current.delta.ReadValue();
                 desiredYaw = Mathf.Clamp(
                     desiredYaw + delta.x * dragSensitivity,
                     -maximumYaw,
@@ -101,8 +115,8 @@ namespace Rippies.Reveal
             Vector3 pivot = card.position;
             Vector3 baseOffset = cameraStartPosition - pivot;
             Quaternion orbit = Quaternion.Euler(
-                currentPitch + idlePitch,
-                currentYaw + idleYaw,
+                (currentPitch + idlePitch) * 0.12f,
+                (currentYaw + idleYaw) * 0.12f,
                 0f);
             Vector3 orbitPosition = pivot + orbit * baseOffset;
             targetCamera.transform.position = Vector3.Lerp(
@@ -120,8 +134,8 @@ namespace Rippies.Reveal
             card.localPosition = cardPresentedPosition +
                 new Vector3(0f, Mathf.Sin(time * 1.15f) * 0.035f, 0f);
             card.localRotation = cardPresentedRotation * Quaternion.Euler(
-                Mathf.Sin(time * 0.73f) * 0.7f,
-                Mathf.Sin(time * 0.91f + 0.4f) * 1.25f,
+                currentPitch + Mathf.Sin(time * 0.73f) * 0.7f,
+                currentYaw + Mathf.Sin(time * 0.91f + 0.4f) * 1.25f,
                 Mathf.Sin(time * 0.57f) * 0.45f);
 
             if (packShell != null)

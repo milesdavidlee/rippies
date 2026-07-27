@@ -49,10 +49,13 @@ bundle exec pod install --project-directory=ios
 3. Open **Collection** and select an unopened pack.
 4. Swipe the Unity seal left-to-right. In `LOCAL REVEAL` fallback mode, swipe or
    tap the reveal track.
-5. Select **View collection** and verify the card appears under **Cards**.
-6. Reopen the same receipt before confirming, or restart the app, to verify the
+5. After the card emerges, drag it horizontally and vertically to inspect the
+   real Unity card in 3D.
+6. Select **View collection** on the Unity completion canvas and verify the
+   coordinated close returns to the populated **Cards** segment.
+7. Reopen the same receipt before confirming, or restart the app, to verify the
    assigned card is restored.
-7. Use **Profile → Reset fake collection** to replay from a clean state.
+8. Use **Profile → Reset fake collection** to replay from a clean state.
 
 To test the real Unity handoff, export the simulator player before running the
 app:
@@ -79,8 +82,10 @@ The iOS host:
 2. Warms Unity while the React Native shell remains visible.
 3. Sends `PrepareReveal(payloadJson)`.
 4. Promotes Unity only after `sceneReady`.
-5. Returns to the React Native completion surface after `revealComplete`.
-6. Restores the React Native window on disposal or interruption.
+5. Keeps the card interactive in Unity after `revealComplete`.
+6. Emits `collectionRequested` only after the user chooses **View collection**
+   and Unity finishes its closing motion.
+7. Restores the React Native window on disposal or interruption.
 
 Generated Unity Xcode exports remain local and must not be committed. Use
 `ios/scripts/export-unity-ios.sh device` for a physical-device export. The

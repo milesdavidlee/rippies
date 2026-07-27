@@ -41,7 +41,8 @@ Implemented:
 - Native Objective-C++ host that warms Unity behind React Native.
 - Crossfade to Unity only after the selected reveal emits `sceneReady`.
 - Native Unity-to-app event delivery for `tearStarted`, `cardVisible`, and `revealComplete`.
-- Crossfade back to the React Native completion surface after the animation.
+- Unity-hosted completion and inspect surface using the React Native design
+  tokens, followed by an explicit collection CTA and coordinated crossfade.
 - Six animated 3D foil packs in a touch/click grid.
 - Independent themes and coordinated palettes.
 - Selected pack animates into the reveal anchor.
@@ -52,7 +53,8 @@ Implemented:
 - Pack falls below frame and is disabled.
 - Card emerges with generated name, rarity, archetype, stats, serial, flavor text, and pattern art.
 - Glow remains behind the card at inspect angles.
-- Soft, clamped drag orbit and continuous idle motion.
+- Touch-driven 3D card inspection with a wide, clamped orbit and continuous
+  idle motion.
 - Return from completed reveal to the pack grid.
 
 The last verified iOS simulator flow was:
@@ -66,8 +68,10 @@ Collection tab
   -> matching Unity pack crossfades full screen
   -> swipe the seal
   -> Unity animates strip, pack, glow, and assigned card
-  -> revealComplete crossfades back to React Native
-  -> View collection opens the Cards segment
+  -> revealComplete keeps Unity visible in inspect mode
+  -> user rotates the real 3D card beneath the completion canvas
+  -> View collection animates the card closed and emits collectionRequested
+  -> native crossfade reveals the React Native Cards segment
 ```
 
 ## Important source files
@@ -143,6 +147,7 @@ sceneReady       value = revealId
 tearStarted      value = revealId
 cardVisible      value = cardId
 revealComplete   value = revealId
+collectionRequested value = revealId
 ```
 
 On iOS, Unity calls the native `RippiesUnityEvent` symbol.
@@ -196,7 +201,8 @@ Production shell responsibilities:
 - Wait for `sceneReady`.
 - Crossfade the native selected tile to the matching Unity pack.
 - Route lifecycle, mute, skip, and recovery actions.
-- Unmount or park Unity after `revealComplete`.
+- Keep Unity active for card inspection after `revealComplete`.
+- Park Unity after `collectionRequested` completes the return transition.
 
 The checked-in mobile stack is bare React Native. A managed-only Expo project
 is not recommended because Unity as a Library requires native iOS project

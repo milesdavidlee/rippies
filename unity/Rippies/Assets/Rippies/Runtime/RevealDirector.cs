@@ -87,6 +87,16 @@ namespace Rippies.Reveal
             owner.NotifyRevealComplete();
         }
 
+        public void CloseToCollection(PackRipController owner)
+        {
+            if (sequence != null)
+            {
+                StopCoroutine(sequence);
+            }
+
+            sequence = StartCoroutine(CloseSequence(owner));
+        }
+
         public void ResetSequence()
         {
             if (sequence != null)
@@ -217,6 +227,43 @@ namespace Rippies.Reveal
 
             revealGlow?.SetRevealAmount(1f);
             owner.NotifyRevealComplete();
+            sequence = null;
+        }
+
+        private IEnumerator CloseSequence(PackRipController owner)
+        {
+            Vector3 startingPosition = card == null ? Vector3.zero : card.localPosition;
+            Quaternion startingRotation = card == null ? Quaternion.identity : card.localRotation;
+            Vector3 startingScale = card == null ? Vector3.one : card.localScale;
+
+            yield return Tween(ProductDesignLanguage.StandardSeconds, value =>
+            {
+                float eased = Mathf.SmoothStep(0f, 1f, value);
+                revealGlow?.SetRevealAmount(1f - eased * 0.72f);
+
+                if (card != null)
+                {
+                    card.localPosition = Vector3.Lerp(
+                        startingPosition,
+                        startingPosition + new Vector3(0f, -0.42f, 0.9f),
+                        eased);
+                    card.localRotation = Quaternion.Slerp(
+                        startingRotation,
+                        startingRotation * Quaternion.Euler(5f, 18f, -3f),
+                        eased);
+                    card.localScale = Vector3.Lerp(
+                        startingScale,
+                        startingScale * 0.88f,
+                        eased);
+                }
+
+                if (revealLight != null)
+                {
+                    revealLight.intensity = Mathf.Lerp(4.5f, 1.8f, eased);
+                }
+            });
+
+            owner.NotifyCollectionRequested();
             sequence = null;
         }
 

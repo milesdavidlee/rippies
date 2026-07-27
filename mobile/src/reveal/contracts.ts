@@ -33,7 +33,8 @@ export type UnityRevealEventName =
   | 'sceneReady'
   | 'tearStarted'
   | 'cardVisible'
-  | 'revealComplete';
+  | 'revealComplete'
+  | 'collectionRequested';
 
 export type UnityRevealEvent = {
   eventName: UnityRevealEventName;

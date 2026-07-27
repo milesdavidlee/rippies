@@ -34,8 +34,8 @@ namespace Rippies.Reveal
                 cardInset = inset == null ? null : inset.GetComponent<Renderer>();
             }
 
-            Color accent = ParseColor(card.accentHex, new Color(0.22f, 0.96f, 0.82f));
-            Color deep = Color.Lerp(new Color(0.008f, 0.014f, 0.04f), accent, 0.3f);
+            Color accent = ParseColor(card.accentHex, ProductDesignLanguage.Cyan);
+            Color deep = Color.Lerp(ProductDesignLanguage.Surface, accent, 0.26f);
             ApplyMaterial(cardFrame, frameProperties, deep, accent);
             ApplyMaterial(cardInset, frameProperties, deep, accent);
             ApplyGeneratedArt(card, accent);
@@ -49,13 +49,13 @@ namespace Rippies.Reveal
             if (nameText != null)
             {
                 nameText.text = card.name.ToUpperInvariant();
-                nameText.color = Color.white;
+                nameText.color = ProductDesignLanguage.Text;
             }
 
             if (typeText != null)
             {
                 typeText.text = card.archetype.ToUpperInvariant();
-                typeText.color = Color.Lerp(Color.white, accent, 0.45f);
+                typeText.color = Color.Lerp(ProductDesignLanguage.Text, accent, 0.45f);
             }
 
             if (statsText != null)
@@ -63,7 +63,7 @@ namespace Rippies.Reveal
                 statsText.text =
                     "ATK  " + card.attack.ToString("00") + "     DEF  " + card.defense.ToString("00") + "\n" +
                     "SPD  " + card.speed.ToString("00") + "     LUCK " + card.luck.ToString("00");
-                statsText.color = Color.white;
+                statsText.color = ProductDesignLanguage.Text;
             }
 
             if (serialText != null)
@@ -75,7 +75,7 @@ namespace Rippies.Reveal
             if (flavorText != null)
             {
                 flavorText.text = card.flavorText;
-                flavorText.color = new Color(0.78f, 0.84f, 0.9f);
+                flavorText.color = ProductDesignLanguage.TextMuted;
             }
         }
 
@@ -193,7 +193,7 @@ namespace Rippies.Reveal
             if (!string.IsNullOrWhiteSpace(html) &&
                 ColorUtility.TryParseHtmlString(html, out Color parsed))
             {
-                return parsed;
+                return parsed.linear;
             }
 
             return fallback;

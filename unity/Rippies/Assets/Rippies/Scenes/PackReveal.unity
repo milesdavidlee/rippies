@@ -1164,10 +1164,10 @@ MonoBehaviour:
   card: {fileID: 937163816}
   packShell: {fileID: 161493776}
   controller: {fileID: 95161384}
-  maximumYaw: 6
-  maximumPitch: 4
-  dragSensitivity: 0.075
-  smoothing: 7
+  maximumYaw: 72
+  maximumPitch: 24
+  dragSensitivity: 0.18
+  smoothing: 9
 --- !u!114 &814393599
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -2620,7 +2620,7 @@ Camera:
   m_Enabled: 1
   serializedVersion: 2
   m_ClearFlags: 2
-  m_BackGroundColor: {r: 0.002, g: 0.006, b: 0.014, a: 1}
+  m_BackGroundColor: {r: 0.002125, g: 0.002732, b: 0.004777, a: 1}
   m_projectionMatrixMode: 1
   m_GateFitMode: 2
   m_FOVAxisMode: 0

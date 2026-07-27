@@ -10,6 +10,7 @@
 @property(nonatomic, copy) NSString *pendingRevealPayload;
 @property(nonatomic, copy) NSString *pendingRevealId;
 @property(nonatomic, assign) BOOL unitySceneLoaded;
+@property(nonatomic, assign) BOOL returningToReact;
 
 @end
 
@@ -189,10 +190,13 @@ RCT_EXPORT_MODULE();
   }
   UIWindow *window = [self unityWindow];
   window.alpha = 0.0;
-  [UIView animateWithDuration:0.24
+  [UIView animateWithDuration:0.36
+      delay:0.0
+      options:UIViewAnimationOptionCurveEaseInOut
                    animations:^{
                      window.alpha = 1.0;
-                   }];
+                   }
+      completion:nil];
 }
 
 - (void)restoreReactWindow
@@ -204,15 +208,19 @@ RCT_EXPORT_MODULE();
 - (void)restoreReactWindowAnimated
 {
   UIWindow *unityWindow = [self unityWindow];
+  self.returningToReact = YES;
   [self.reactWindow makeKeyAndVisible];
   self.reactWindow.alpha = 0.0;
-  [UIView animateWithDuration:0.24
+  [UIView animateWithDuration:0.36
+      delay:0.0
+      options:UIViewAnimationOptionCurveEaseInOut
       animations:^{
         self.reactWindow.alpha = 1.0;
         unityWindow.alpha = 0.0;
       }
       completion:^(__unused BOOL finished) {
         unityWindow.alpha = 1.0;
+        self.returningToReact = NO;
       }];
 }
 
@@ -230,6 +238,7 @@ RCT_REMAP_METHOD(
                                            error:nil]
         : nil;
     self.pendingRevealPayload = payloadJson;
+    self.returningToReact = NO;
     self.pendingRevealId =
         [payload[@"revealId"] isKindOfClass:NSString.class]
         ? payload[@"revealId"]
@@ -302,9 +311,28 @@ RCT_REMAP_METHOD(
     disposeRevealWithResolver : (RCTPromiseResolveBlock)resolve rejecter
     : (RCTPromiseRejectBlock)reject)
 {
-  [self invoke:@"DisposeReveal" value:@"" resolve:resolve reject:reject];
   dispatch_async(dispatch_get_main_queue(), ^{
-    [self restoreReactWindow];
+    if (self.returningToReact) {
+      // Preserve Unity's closing pose during the native crossfade, then park
+      // the scene after it is no longer visible.
+      resolve(nil);
+      dispatch_after(
+          dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.4 * NSEC_PER_SEC)),
+          dispatch_get_main_queue(),
+          ^{
+            NSError *ignoredError = nil;
+            [self sendMessage:@"DisposeReveal" value:@"" error:&ignoredError];
+          });
+      return;
+    }
+
+    NSError *error = nil;
+    if ([self sendMessage:@"DisposeReveal" value:@"" error:&error]) {
+      resolve(nil);
+      [self restoreReactWindowAnimated];
+    } else {
+      reject(@"unity_message_failed", error.localizedDescription, error);
+    }
   });
 }
 
@@ -351,15 +379,8 @@ RCT_REMAP_METHOD(
     [self showUnityWindow];
   }
   [self sendEventWithName:@"RippiesUnityRevealEvent" body:event];
-  if ([eventName isEqualToString:@"revealComplete"]) {
-    // Give React Native one frame to commit the receipt, then crossfade back
-    // to the collection-owned completion surface.
-    dispatch_after(
-        dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.12 * NSEC_PER_SEC)),
-        dispatch_get_main_queue(),
-        ^{
-          [self restoreReactWindowAnimated];
-        });
+  if ([eventName isEqualToString:@"collectionRequested"]) {
+    [self restoreReactWindowAnimated];
   }
 }
 

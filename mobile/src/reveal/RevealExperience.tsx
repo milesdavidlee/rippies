@@ -99,6 +99,8 @@ export function RevealExperience({pack, onCancel, onComplete}: Props) {
               );
               setReceipt(updated);
               setStage('complete');
+            } else if (event.eventName === 'collectionRequested') {
+              onComplete(pack);
             }
           });
           await UnityRevealBridge.prepareReveal(nextReceipt.payload);
@@ -130,7 +132,7 @@ export function RevealExperience({pack, onCancel, onComplete}: Props) {
         });
       }
     };
-  }, [entry, pack, revealProgress, tearProgress]);
+  }, [entry, onComplete, pack, revealProgress, tearProgress]);
 
   const commitFakeReveal = async () => {
     if (!receipt || !pack || stage !== 'ready') {

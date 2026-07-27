@@ -26,11 +26,15 @@ namespace Rippies.Reveal
         private Quaternion stripStartRotation;
         private Vector3 packStartScale;
         private bool committed;
+        private bool closing;
         private RevealPayload payload;
+        private Color accentColor = ProductDesignLanguage.Cyan;
 
         public RipState State { get; private set; } = RipState.Loading;
         public float TearProgress { get; private set; }
         public RevealPayload Payload => payload;
+        public Color AccentColor => accentColor;
+        public bool IsClosing => closing;
         public bool AcceptsTearInput =>
             State == RipState.Ready ||
             State == RipState.Grabbing ||
@@ -132,6 +136,7 @@ namespace Rippies.Reveal
         public void ResetReveal()
         {
             committed = false;
+            closing = false;
             TearProgress = 0f;
             transform.localScale = packStartScale;
             if (topStrip != null)
@@ -167,6 +172,22 @@ namespace Rippies.Reveal
             Emit("revealComplete", payload == null ? "" : payload.revealId);
         }
 
+        public void RequestCollection()
+        {
+            if (State != RipState.Complete || closing)
+            {
+                return;
+            }
+
+            closing = true;
+            revealDirector?.CloseToCollection(this);
+        }
+
+        public void NotifyCollectionRequested()
+        {
+            Emit("collectionRequested", payload == null ? "" : payload.revealId);
+        }
+
         private void CommitReveal()
         {
             committed = true;
@@ -182,11 +203,12 @@ namespace Rippies.Reveal
                 return;
             }
 
-            Color fallback = new Color(0.22f, 0.96f, 0.82f);
+            Color fallback = ProductDesignLanguage.Cyan;
             Color accent = ColorUtility.TryParseHtmlString(card.accentHex, out Color parsed)
-                ? parsed
+                ? parsed.linear
                 : fallback;
-            Color baseColor = Color.Lerp(new Color(0.006f, 0.012f, 0.028f), accent, 0.2f);
+            accentColor = accent;
+            Color baseColor = Color.Lerp(ProductDesignLanguage.Canvas, accent, 0.18f);
 
             ApplyPalette(packBody, bodyProperties, baseColor, accent);
             ApplyPalette(topStripRenderer, stripProperties, baseColor, accent);

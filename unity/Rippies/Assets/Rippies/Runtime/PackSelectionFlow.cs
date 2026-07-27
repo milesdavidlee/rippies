@@ -376,9 +376,9 @@ namespace Rippies.Reveal
         private void ApplyTheme(GameObject pack, ThemeDefinition theme)
         {
             Color accent = ColorUtility.TryParseHtmlString(theme.AccentHex, out Color parsed)
-                ? parsed
-                : new Color(0.2f, 0.95f, 0.8f);
-            Color baseColor = Color.Lerp(new Color(0.006f, 0.012f, 0.028f), accent, 0.2f);
+                ? parsed.linear
+                : ProductDesignLanguage.Cyan;
+            Color baseColor = Color.Lerp(ProductDesignLanguage.Canvas, accent, 0.18f);
             var properties = new MaterialPropertyBlock();
 
             foreach (Renderer renderer in pack.GetComponentsInChildren<Renderer>(true))
