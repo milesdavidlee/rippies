@@ -1,0 +1,61 @@
+# macOS
+.DS_Store
+
+# Editors
+.idea/
+.vs/
+.vscode/
+*.suo
+*.user
+*.userprefs
+*.pidb
+*.booproj
+
+# Unity generated
+[Ll]ibrary/
+[Tt]emp/
+[Oo]bj/
+[Ll]ogs/
+[Uu]ser[Ss]ettings/
+[Mm]emoryCaptures/
+[Rr]ecordings/
+[Bb]uild/
+[Bb]uilds/
+*.csproj
+*.sln
+*.slnx
+*.unityproj
+sysinfo.txt
+
+# Unity generated crash and profiling files
+crashlytics-build.properties
+
+# React Native / Node
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.metro-health-check*
+
+# iOS generated and secrets
+mobile/ios/Pods/
+mobile/ios/build/
+mobile/ios/DerivedData/
+*.xcuserstate
+xcuserdata/
+*.mobileprovision
+*.p12
+
+# Android generated and secrets
+mobile/android/.gradle/
+mobile/android/build/
+mobile/android/app/build/
+mobile/android/local.properties
+*.jks
+*.keystore
+
+# Environment files
+.env
+.env.*
+!.env.example
+

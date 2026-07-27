@@ -1,0 +1,30 @@
+name: Repository structure
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check required Unity project files
+        run: |
+          test -f unity/Rippies/ProjectSettings/ProjectVersion.txt
+          test -f unity/Rippies/Packages/manifest.json
+          test -f unity/Rippies/Assets/Rippies/Scenes/PackReveal.unity
+          test -f unity/Rippies/Assets/Rippies/Runtime/NativeRevealBridge.cs
+      - name: Reject generated Unity directories
+        run: |
+          test ! -d unity/Rippies/Library
+          test ! -d unity/Rippies/Temp
+          test ! -d unity/Rippies/Logs
+      - name: Check bare React Native shell
+        run: |
+          test -f mobile/package.json
+          test -f mobile/ios/RippiesMobile.xcodeproj/project.pbxproj
+          test -f mobile/android/settings.gradle
+          test -f mobile/src/bridge/UnityRevealBridge.ts
