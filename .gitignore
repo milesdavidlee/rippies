@@ -27,6 +27,15 @@
 *.unityproj
 sysinfo.txt
 
+# Locally licensed marketplace source assets
+# Keep purchased Fab binaries available to Unity without redistributing them
+# through this public repository.
+unity/Rippies/Assets/Resources/Rippies/ThirdParty/Local/
+unity/Rippies/Assets/Resources.meta
+unity/Rippies/Assets/Resources/Rippies.meta
+unity/Rippies/Assets/Resources/Rippies/ThirdParty.meta
+unity/Rippies/Assets/Resources/Rippies/ThirdParty/Local.meta
+
 # Unity generated crash and profiling files
 crashlytics-build.properties
 
@@ -58,4 +67,3 @@ mobile/android/local.properties
 .env
 .env.*
 !.env.example
-

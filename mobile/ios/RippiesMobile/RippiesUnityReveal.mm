@@ -1,7 +1,78 @@
 #import <React/RCTBridgeModule.h>
 #import <React/RCTEventEmitter.h>
+#import <React/RCTViewManager.h>
 #import <UIKit/UIKit.h>
 #import <objc/message.h>
+
+@interface RippiesGlassView : UIView
+
+@property(nonatomic, strong) UIVisualEffectView *effectView;
+
+@end
+
+@implementation RippiesGlassView
+
+- (instancetype)initWithFrame:(CGRect)frame
+{
+  self = [super initWithFrame:frame];
+  if (self) {
+    UIVisualEffect *effect = nil;
+    if (@available(iOS 26.0, *)) {
+      UIGlassEffect *glass =
+          [UIGlassEffect effectWithStyle:UIGlassEffectStyleRegular];
+      glass.interactive = YES;
+      glass.tintColor =
+          [UIColor colorWithRed:0.035 green:0.047 blue:0.082 alpha:0.42];
+      effect = glass;
+    } else {
+      effect = [UIBlurEffect
+          effectWithStyle:UIBlurEffectStyleSystemUltraThinMaterialDark];
+    }
+
+    _effectView = [[UIVisualEffectView alloc] initWithEffect:effect];
+    _effectView.userInteractionEnabled = NO;
+    _effectView.autoresizingMask =
+        UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
+    [self addSubview:_effectView];
+
+    self.backgroundColor = UIColor.clearColor;
+    self.clipsToBounds = YES;
+    self.layer.cornerRadius = 26.0;
+    self.layer.cornerCurve = kCACornerCurveContinuous;
+    self.layer.borderColor =
+        [UIColor colorWithWhite:1.0 alpha:0.12].CGColor;
+    self.layer.borderWidth = 0.75;
+  }
+  return self;
+}
+
+- (void)layoutSubviews
+{
+  [super layoutSubviews];
+  self.effectView.frame = self.bounds;
+  [self sendSubviewToBack:self.effectView];
+}
+
+@end
+
+@interface RippiesGlassViewManager : RCTViewManager
+@end
+
+@implementation RippiesGlassViewManager
+
+RCT_EXPORT_MODULE(RippiesGlassView)
+
++ (BOOL)requiresMainQueueSetup
+{
+  return YES;
+}
+
+- (UIView *)view
+{
+  return [[RippiesGlassView alloc] initWithFrame:CGRectZero];
+}
+
+@end
 
 @interface RippiesUnityReveal : RCTEventEmitter <RCTBridgeModule>
 

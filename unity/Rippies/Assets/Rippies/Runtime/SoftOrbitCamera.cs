@@ -11,13 +11,15 @@ namespace Rippies.Reveal
         [SerializeField] private Transform card;
         [SerializeField] private Transform packShell;
         [SerializeField] private PackRipController controller;
-        [SerializeField] private float maximumYaw = 72f;
-        [SerializeField] private float maximumPitch = 24f;
+        [SerializeField] private float maximumPitch = 52f;
         [SerializeField] private float dragSensitivity = 0.18f;
         [SerializeField] private float smoothing = 9f;
+        [SerializeField, Range(0.55f, 0.9f)] private float frameFill = 0.76f;
 
         private Vector3 cameraStartPosition;
         private Quaternion cameraStartRotation;
+        private Vector3 focusedCameraPosition;
+        private Quaternion focusedCameraRotation;
         private Vector3 cardPresentedPosition;
         private Quaternion cardPresentedRotation;
         private Vector3 shellPresentedPosition;
@@ -27,6 +29,16 @@ namespace Rippies.Reveal
         private float currentYaw;
         private float currentPitch;
         private bool wasComplete;
+
+        public void SetCard(Transform target)
+        {
+            card = target;
+            wasComplete = false;
+            desiredYaw = 0f;
+            desiredPitch = 0f;
+            currentYaw = 0f;
+            currentPitch = 0f;
+        }
 
         private void Awake()
         {
@@ -73,6 +85,7 @@ namespace Rippies.Reveal
                 wasComplete = true;
                 cardPresentedPosition = card.localPosition;
                 cardPresentedRotation = card.localRotation;
+                FrameCard();
                 if (packShell != null)
                 {
                     shellPresentedPosition = packShell.localPosition;
@@ -96,10 +109,7 @@ namespace Rippies.Reveal
 
             if (dragging)
             {
-                desiredYaw = Mathf.Clamp(
-                    desiredYaw + delta.x * dragSensitivity,
-                    -maximumYaw,
-                    maximumYaw);
+                desiredYaw += delta.x * dragSensitivity;
                 desiredPitch = Mathf.Clamp(
                     desiredPitch - delta.y * dragSensitivity,
                     -maximumPitch,
@@ -112,27 +122,16 @@ namespace Rippies.Reveal
             float time = Time.unscaledTime;
             float idleYaw = dragging ? 0f : Mathf.Sin(time * 0.62f) * 1.15f;
             float idlePitch = dragging ? 0f : Mathf.Sin(time * 0.47f + 0.8f) * 0.55f;
-            Vector3 pivot = card.position;
-            Vector3 baseOffset = cameraStartPosition - pivot;
-            Quaternion orbit = Quaternion.Euler(
-                (currentPitch + idlePitch) * 0.12f,
-                (currentYaw + idleYaw) * 0.12f,
-                0f);
-            Vector3 orbitPosition = pivot + orbit * baseOffset;
             targetCamera.transform.position = Vector3.Lerp(
                 targetCamera.transform.position,
-                orbitPosition,
+                focusedCameraPosition,
                 Damp());
-            Quaternion lookRotation = Quaternion.LookRotation(
-                pivot - targetCamera.transform.position,
-                Vector3.up);
             targetCamera.transform.rotation = Quaternion.Slerp(
                 targetCamera.transform.rotation,
-                lookRotation,
+                focusedCameraRotation,
                 Damp());
 
-            card.localPosition = cardPresentedPosition +
-                new Vector3(0f, Mathf.Sin(time * 1.15f) * 0.035f, 0f);
+            card.localPosition = cardPresentedPosition;
             card.localRotation = cardPresentedRotation * Quaternion.Euler(
                 currentPitch + Mathf.Sin(time * 0.73f) * 0.7f,
                 currentYaw + Mathf.Sin(time * 0.91f + 0.4f) * 1.25f,
@@ -150,6 +149,40 @@ namespace Rippies.Reveal
         private float Damp()
         {
             return 1f - Mathf.Exp(-smoothing * Time.unscaledDeltaTime);
+        }
+
+        private void FrameCard()
+        {
+            Vector3 center = card.position;
+            Bounds bounds = new Bounds(center, Vector3.one * 0.01f);
+            bool hasBounds = false;
+            foreach (Renderer renderer in card.GetComponentsInChildren<Renderer>(true))
+            {
+                if (!hasBounds)
+                {
+                    bounds = renderer.bounds;
+                    hasBounds = true;
+                }
+                else
+                {
+                    bounds.Encapsulate(renderer.bounds);
+                }
+            }
+
+            center = hasBounds ? bounds.center : center;
+            float verticalHalf = Mathf.Max(bounds.extents.y, 0.01f);
+            float horizontalHalf = Mathf.Max(bounds.extents.x, 0.01f);
+            float effectiveHalf = Mathf.Max(
+                verticalHalf,
+                horizontalHalf / Mathf.Max(targetCamera.aspect, 0.01f));
+            float halfFov = targetCamera.fieldOfView * Mathf.Deg2Rad * 0.5f;
+            float distance = effectiveHalf /
+                Mathf.Max(Mathf.Tan(halfFov) * frameFill, 0.01f);
+            Vector3 forward = cameraStartRotation * Vector3.forward;
+            focusedCameraPosition = center - forward * distance;
+            focusedCameraRotation = Quaternion.LookRotation(
+                center - focusedCameraPosition,
+                cameraStartRotation * Vector3.up);
         }
     }
 }

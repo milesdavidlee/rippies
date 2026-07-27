@@ -36,6 +36,8 @@ Assets/Rippies/Scenes/PackReveal.unity
 Implemented:
 
 - Bare React Native iOS shell with Discover, Collection, and Profile tabs.
+- iOS 26 navigation uses native `UIGlassEffect` Liquid Glass in dark mode,
+  with an ultra-thin dark material fallback on earlier iOS releases.
 - Deterministic fake inventory, immutable reveal receipts, and resume-safe presentation state.
 - Automatic simulator Unity export/build/embed phase in the iOS app target.
 - Native Objective-C++ host that warms Unity behind React Native.
@@ -46,15 +48,23 @@ Implemented:
 - Six animated 3D foil packs in a touch/click grid.
 - Independent themes and coordinated palettes.
 - Selected pack animates into the reveal anchor.
+- Optional licensed Fab GLB drives the centered arrival, swipe-scrubbed tear,
+  wrapper release, and card extraction; the procedural pack remains the
+  repository-safe fallback.
 - Selected `packTypeId`, palette, and generated card payload pass through `NativeRevealBridge`.
 - Left-to-right constrained tear interaction.
 - Procedurally inflated foil geometry with crimping, wrinkles, and jagged seam.
 - Top strip fully detaches and exits the frame.
 - Pack falls below frame and is disabled.
-- Card emerges with generated name, rarity, archetype, stats, serial, flavor text, and pattern art.
+- The purchased animation's card mesh emerges continuously from the wrapper,
+  receives a deterministic receipt-specific Rippies face texture, detaches at
+  the authored settle frame, and becomes the inspect target.
+- Without the local licensed GLB, the generated fallback card still emerges
+  with name, rarity, archetype, stats, serial, flavor text, and pattern art.
 - Glow remains behind the card at inspect angles.
-- Touch-driven 3D card inspection with a wide, clamped orbit and continuous
-  idle motion.
+- Touch-driven 3D card inspection around the authored mesh center, with
+  unlimited horizontal turns, bounded vertical tilt, and continuous idle
+  motion.
 - Return from completed reveal to the pack grid.
 
 The last verified iOS simulator flow was:
@@ -82,6 +92,8 @@ Assets/Rippies/Runtime/NativeRevealBridge.cs
 Assets/Rippies/Runtime/PackRipController.cs
 Assets/Rippies/Runtime/SwipeTearInteractor.cs
 Assets/Rippies/Runtime/FoilPackDeformer.cs
+Assets/Rippies/Runtime/AuthoredPackDriver.cs
+Assets/Rippies/Runtime/CardFaceTextureFactory.cs
 Assets/Rippies/Runtime/RevealDirector.cs
 Assets/Rippies/Runtime/RevealGlowPulse.cs
 Assets/Rippies/Runtime/GeneratedCardPresenter.cs
@@ -107,6 +119,42 @@ Mobile collection grid
 ```
 
 The animation never decides which card the user owns. The backend must assign and persist the result before Unity becomes interactive.
+
+## Licensed authored reveal asset
+
+The enhanced reveal uses the purchased `Animated Card Loot Pack` GLB through
+Unity glTFast. Because this repository is public, the marketplace binary is
+kept local and ignored by Git.
+
+Place it at:
+
+```text
+unity/Rippies/Assets/Resources/Rippies/ThirdParty/Local/animated_card_loot_pack.glb
+```
+
+`AuthoredPackDriver` maps the source clip into product-controlled phases:
+
+```text
+0.04s–3.88s  centered arrival / presentation
+5.88s–6.84s  user-controlled swipe scrub
+6.84s–7.48s  committed wrapper tear
+7.48s–8.84s  card extraction and settle
+```
+
+At reveal preparation, `CardFaceTextureFactory` derives a deterministic face
+from the immutable `CardPayload`. `AuthoredPackDriver` composites that face
+into only the front-art region of the purchased model's original UV atlas, so
+the authored border, edge thickness, and back remain intact. At the settle
+frame the authored card is detached without rescaling, wrapped in a pivot at
+its renderer center, and passed to `SoftOrbitCamera`; the camera dollies to
+frame the original card instead of changing its dimensions.
+
+Before every subsequent reveal, the card is restored to its authored parent
+and exact original local scale before a new payload is applied. This reset
+ordering is required because Unity remains resident between pack openings; it
+prevents the closing-pivot scale from accumulating across a multi-pack session.
+The generated Unity card is not displayed when the licensed asset is
+available.
 
 ## Bridge contract
 

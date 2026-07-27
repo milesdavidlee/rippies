@@ -14,6 +14,8 @@ namespace Rippies.Reveal
         private GUIStyle productStatusStyle;
         private GUIStyle productTitleStyle;
         private GUIStyle productDetailStyle;
+        private GUIStyle productCenteredTitleStyle;
+        private GUIStyle productCenteredDetailStyle;
         private GUIStyle productButtonStyle;
         private GUIStyle productButtonDisabledStyle;
 
@@ -99,6 +101,8 @@ namespace Rippies.Reveal
 
             string status = controller.State == RipState.Complete
                 ? "INSPECT MODE"
+                : controller.State == RipState.Presenting
+                    ? "PACK INCOMING"
                 : controller.AcceptsTearInput
                     ? "REVEAL READY"
                     : "REVEALING";
@@ -107,29 +111,20 @@ namespace Rippies.Reveal
 
         private void DrawTearPanel(float logicalWidth, float logicalHeight)
         {
-            float panelWidth = Mathf.Min(logicalWidth - 36f, 394f);
-            float panelX = (logicalWidth - panelWidth) * 0.5f;
-            Rect panel = new Rect(panelX, logicalHeight - 142f, panelWidth, 104f);
-            DrawPanel(
-                panel,
-                new Color(
-                    ProductDesignLanguage.Surface.r,
-                    ProductDesignLanguage.Surface.g,
-                    ProductDesignLanguage.Surface.b,
-                    0.96f),
-                ProductDesignLanguage.Line,
-                1f);
+            float contentWidth = Mathf.Min(logicalWidth - 64f, 350f);
+            float contentX = (logicalWidth - contentWidth) * 0.5f;
+            float contentY = logicalHeight - 126f;
 
             GUI.Label(
-                new Rect(panel.x + 18f, panel.y + 15f, panel.width - 36f, 18f),
+                new Rect(contentX, contentY, contentWidth, 18f),
                 "SWIPE TO RIP",
-                productEyebrowStyle);
+                productStatusStyle);
             GUI.Label(
-                new Rect(panel.x + 18f, panel.y + 35f, panel.width - 36f, 22f),
+                new Rect(contentX, contentY + 22f, contentWidth, 22f),
                 "Drag across the seal from left to right.",
-                productDetailStyle);
+                productCenteredDetailStyle);
 
-            Rect track = new Rect(panel.x + 18f, panel.y + 74f, panel.width - 36f, 3f);
+            Rect track = new Rect(contentX, contentY + 63f, contentWidth, 2f);
             DrawRect(track, new Color(1f, 1f, 1f, 0.12f));
             DrawRect(
                 new Rect(
@@ -138,43 +133,40 @@ namespace Rippies.Reveal
                     track.width * controller.TearProgress,
                     track.height),
                 controller.AccentColor);
+            DrawRect(
+                new Rect(track.x - 3f, track.y - 3f, 8f, 8f),
+                controller.AccentColor);
             GUI.Label(
-                new Rect(track.xMax - 28f, panel.y + 57f, 28f, 28f),
+                new Rect(track.x, track.y + 6f, 56f, 18f),
+                "START",
+                productEyebrowStyle);
+            GUI.Label(
+                new Rect(track.xMax - 28f, track.y - 16f, 28f, 28f),
                 "→",
                 productTitleStyle);
         }
 
         private void DrawCompletionPanel(float logicalWidth, float logicalHeight)
         {
-            float panelWidth = Mathf.Min(logicalWidth - 28f, 402f);
-            float panelX = (logicalWidth - panelWidth) * 0.5f;
-            Rect panel = new Rect(panelX, logicalHeight - 238f, panelWidth, 204f);
-            DrawPanel(
-                panel,
-                new Color(
-                    ProductDesignLanguage.SurfaceRaised.r,
-                    ProductDesignLanguage.SurfaceRaised.g,
-                    ProductDesignLanguage.SurfaceRaised.b,
-                    0.97f),
-                ProductDesignLanguage.Line,
-                1f);
+            float contentWidth = Mathf.Min(logicalWidth - 48f, 370f);
+            float contentX = (logicalWidth - contentWidth) * 0.5f;
 
             GUI.Label(
-                new Rect(panel.x + 20f, panel.y + 17f, panel.width - 40f, 18f),
+                new Rect(contentX, 112f, contentWidth, 18f),
                 "+  COLLECTION",
-                productEyebrowStyle);
+                productStatusStyle);
             GUI.Label(
-                new Rect(panel.x + 20f, panel.y + 39f, panel.width - 40f, 34f),
+                new Rect(contentX, 136f, contentWidth, 34f),
                 "Added to your collection",
-                productTitleStyle);
+                productCenteredTitleStyle);
             GUI.Label(
-                new Rect(panel.x + 20f, panel.y + 77f, panel.width - 40f, 22f),
+                new Rect(contentX, 172f, contentWidth, 22f),
                 controller.IsClosing
                     ? "Taking you back to your cards…"
                     : "Drag the card to inspect every angle.",
-                productDetailStyle);
+                productCenteredDetailStyle);
 
-            Rect button = new Rect(panel.x + 20f, panel.y + 124f, panel.width - 40f, 54f);
+            Rect button = new Rect(contentX + 42f, logicalHeight - 88f, contentWidth - 84f, 48f);
             DrawRect(
                 button,
                 controller.IsClosing
@@ -261,6 +253,14 @@ namespace Rippies.Reveal
                 alignment = TextAnchor.MiddleLeft,
                 fontSize = 12,
                 normal = { textColor = ProductDesignLanguage.TextMuted }
+            };
+            productCenteredTitleStyle = new GUIStyle(productTitleStyle)
+            {
+                alignment = TextAnchor.MiddleCenter
+            };
+            productCenteredDetailStyle = new GUIStyle(productDetailStyle)
+            {
+                alignment = TextAnchor.MiddleCenter
             };
             productButtonStyle = new GUIStyle(GUI.skin.label)
             {

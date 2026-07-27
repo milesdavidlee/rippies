@@ -261,6 +261,18 @@ export function RevealExperience({pack, onCancel, onComplete}: Props) {
             </View>
           </View>
 
+          {complete ? (
+            <View style={styles.completionHeader}>
+              <Text style={styles.completionEyebrow}>+ COLLECTION</Text>
+              <Text style={styles.completionTitle}>
+                Added to your collection
+              </Text>
+              <Text style={styles.completionDetail}>
+                Drag the card to inspect every angle.
+              </Text>
+            </View>
+          ) : null}
+
           <View style={styles.stage}>
             <Animated.View
               style={[
@@ -372,14 +384,22 @@ export function RevealExperience({pack, onCancel, onComplete}: Props) {
                 accessibilityHint="Swipe right for the full gesture or double tap to reveal"
                 accessibilityLabel="Rip pack"
                 accessibilityRole="button"
-                disabled={nativeMode}
-                onPress={nativeMode ? undefined : commitFakeReveal}
+                onPress={
+                  nativeMode
+                    ? () => {
+                        UnityRevealBridge.skipReveal().catch(() => {
+                          // The visual swipe remains available if the bridge unloads.
+                        });
+                      }
+                    : commitFakeReveal
+                }
                 {...(nativeMode ? {} : panResponder.panHandlers)}>
                 <Text style={styles.promptTitle}>Swipe to rip</Text>
                 <Text style={styles.promptDetail}>
                   Drag across the seal from left to right.
                 </Text>
                 <View style={styles.swipeTrack}>
+                  <View style={styles.swipeRail} />
                   <Animated.View
                     style={[
                       styles.swipeFill,
@@ -392,6 +412,13 @@ export function RevealExperience({pack, onCancel, onComplete}: Props) {
                       },
                     ]}
                   />
+                  <View
+                    style={[
+                      styles.swipeStartDot,
+                      {backgroundColor: pack.theme.accent},
+                    ]}
+                  />
+                  <Text style={styles.swipeStartLabel}>START</Text>
                   <Text style={styles.swipeArrow}>→</Text>
                 </View>
               </Pressable>
@@ -403,22 +430,16 @@ export function RevealExperience({pack, onCancel, onComplete}: Props) {
               </>
             ) : null}
             {complete ? (
-              <>
-                <Text style={styles.promptTitle}>Added to your collection</Text>
-                <Text style={styles.promptDetail}>
-                  Receipt {pack.reveal.revealId}
-                </Text>
-                <Pressable
-                  accessibilityRole="button"
-                  onPress={() => onComplete(pack)}
-                  style={({pressed}) => [
-                    styles.doneButton,
-                    {backgroundColor: pack.theme.accent},
-                    pressed && styles.pressed,
-                  ]}>
-                  <Text style={styles.doneButtonText}>View collection</Text>
-                </Pressable>
-              </>
+              <Pressable
+                accessibilityRole="button"
+                onPress={() => onComplete(pack)}
+                style={({pressed}) => [
+                  styles.doneButton,
+                  {backgroundColor: pack.theme.accent},
+                  pressed && styles.pressed,
+                ]}>
+                <Text style={styles.doneButtonText}>View collection</Text>
+              </Pressable>
             ) : null}
             {stage === 'error' ? (
               <>
@@ -503,6 +524,33 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     flex: 1,
     justifyContent: 'center',
+  },
+  completionHeader: {
+    alignItems: 'center',
+    left: 28,
+    position: 'absolute',
+    right: 28,
+    top: 84,
+    zIndex: 2,
+  },
+  completionEyebrow: {
+    color: tokens.color.cyan,
+    fontSize: 10,
+    fontWeight: '900',
+    letterSpacing: 1.5,
+  },
+  completionTitle: {
+    color: tokens.color.text,
+    fontSize: 24,
+    fontWeight: '900',
+    marginTop: 7,
+    textAlign: 'center',
+  },
+  completionDetail: {
+    color: tokens.color.textMuted,
+    fontSize: 12,
+    marginTop: 7,
+    textAlign: 'center',
   },
   packWrap: {
     position: 'absolute',
@@ -608,26 +656,49 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   swipeTrack: {
-    backgroundColor: tokens.color.surfaceRaised,
-    borderColor: tokens.color.line,
-    borderRadius: tokens.radius.pill,
-    borderWidth: 1,
-    height: 48,
-    marginTop: 18,
-    overflow: 'hidden',
+    height: 38,
+    marginHorizontal: 22,
+    marginTop: 20,
+    position: 'relative',
+  },
+  swipeRail: {
+    backgroundColor: 'rgba(255,255,255,0.14)',
+    height: 2,
+    left: 0,
+    position: 'absolute',
+    right: 0,
+    top: 10,
   },
   swipeFill: {
-    bottom: 0,
+    height: 2,
     left: 0,
-    opacity: 0.24,
+    opacity: 0.9,
     position: 'absolute',
-    top: 0,
+    top: 10,
+  },
+  swipeStartDot: {
+    borderRadius: 6,
+    height: 10,
+    left: -2,
+    position: 'absolute',
+    top: 6,
+    width: 10,
+  },
+  swipeStartLabel: {
+    color: tokens.color.textMuted,
+    fontSize: 8,
+    fontWeight: '900',
+    left: 0,
+    letterSpacing: 1,
+    position: 'absolute',
+    top: 23,
   },
   swipeArrow: {
     color: tokens.color.text,
-    fontSize: 23,
-    paddingTop: 7,
-    textAlign: 'center',
+    fontSize: 20,
+    position: 'absolute',
+    right: 0,
+    top: -3,
   },
   doneButton: {
     alignSelf: 'center',

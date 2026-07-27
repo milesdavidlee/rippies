@@ -10,8 +10,10 @@ namespace Rippies.Reveal
         [SerializeField] private Renderer cardRenderer;
         [SerializeField] private Light revealLight;
         [SerializeField] private RevealGlowPulse revealGlow;
+        [SerializeField] private SoftOrbitCamera softOrbit;
         [SerializeField] private float reducedMotionMultiplier = 0.35f;
 
+        private Transform interactiveCard;
         private Vector3 cardStartPosition;
         private Quaternion cardStartRotation;
         private Vector3 cardStartScale;
@@ -19,10 +21,33 @@ namespace Rippies.Reveal
         private Quaternion packStartRotation;
         private Vector3 packStartScale;
         private Coroutine sequence;
+        private bool presentationIdle;
+        private float idleStartedAt;
 
         private void Awake()
         {
+            softOrbit ??= FindFirstObjectByType<SoftOrbitCamera>();
+            interactiveCard = card;
             CaptureInitialPose();
+        }
+
+        private void Update()
+        {
+            if (!presentationIdle || packRoot == null)
+            {
+                return;
+            }
+
+            float time = Time.unscaledTime - idleStartedAt;
+            float hover = Mathf.Sin(time * 1.45f);
+            packRoot.localPosition = packStartPosition +
+                new Vector3(0f, hover * 0.045f, 0f);
+            packRoot.localRotation = packStartRotation * Quaternion.Euler(
+                Mathf.Sin(time * 0.72f) * 1.4f,
+                Mathf.Sin(time * 0.58f + 0.4f) * 3.8f,
+                Mathf.Sin(time * 0.9f) * 0.8f);
+            packRoot.localScale = packStartScale *
+                (1f + Mathf.Sin(time * 1.1f + 0.7f) * 0.006f);
         }
 
         public void CaptureInitialPose()
@@ -47,6 +72,25 @@ namespace Rippies.Reveal
             revealGlow?.SetGlowColor(accent);
         }
 
+        public void SetAuthoredPackAvailable(bool available)
+        {
+            if (card != null)
+            {
+                card.gameObject.SetActive(!available);
+            }
+        }
+
+        public void PlayPresentation(PackRipController owner, bool reducedMotion)
+        {
+            if (sequence != null)
+            {
+                StopCoroutine(sequence);
+            }
+
+            presentationIdle = false;
+            sequence = StartCoroutine(PresentationSequence(owner, reducedMotion));
+        }
+
         public void Play(PackRipController owner, bool reducedMotion)
         {
             if (sequence != null)
@@ -54,6 +98,7 @@ namespace Rippies.Reveal
                 StopCoroutine(sequence);
             }
 
+            presentationIdle = false;
             sequence = StartCoroutine(PlaySequence(owner, reducedMotion));
         }
 
@@ -65,16 +110,22 @@ namespace Rippies.Reveal
                 sequence = null;
             }
 
+            presentationIdle = false;
             owner.SetCinematicTear(1f, 1f);
+            owner.SampleAuthoredOpening(1f);
             revealGlow?.SetRevealAmount(1f);
+            interactiveCard = ResolveInteractiveCard(owner);
             SetPackPresentedPose();
-
-            if (card != null)
+            if (interactiveCard != null)
             {
-                card.gameObject.SetActive(true);
-                card.localPosition = new Vector3(0f, 0.02f, -1.6f);
-                card.localRotation = Quaternion.identity;
-                card.localScale = cardStartScale * 1.05f;
+                interactiveCard.gameObject.SetActive(true);
+                if (!owner.HasAuthoredPack)
+                {
+                    interactiveCard.localPosition = new Vector3(0f, 0.02f, -1.6f);
+                    interactiveCard.localRotation = Quaternion.identity;
+                    interactiveCard.localScale = cardStartScale * 1.05f;
+                }
+                softOrbit?.SetCard(interactiveCard);
             }
 
             if (revealLight != null)
@@ -94,6 +145,7 @@ namespace Rippies.Reveal
                 StopCoroutine(sequence);
             }
 
+            presentationIdle = false;
             sequence = StartCoroutine(CloseSequence(owner));
         }
 
@@ -105,7 +157,10 @@ namespace Rippies.Reveal
                 sequence = null;
             }
 
+            presentationIdle = false;
             revealGlow?.SetRevealAmount(0f);
+            interactiveCard = card;
+            softOrbit?.SetCard(card);
 
             if (packRoot != null)
             {
@@ -129,12 +184,79 @@ namespace Rippies.Reveal
             }
         }
 
+        private IEnumerator PresentationSequence(PackRipController owner, bool reducedMotion)
+        {
+            if (packRoot == null)
+            {
+                owner.NotifyPresentationComplete();
+                sequence = null;
+                yield break;
+            }
+
+            float motion = reducedMotion ? 0.58f : 1f;
+            float spinDegrees = reducedMotion ? 38f : 240f;
+            Vector3 incomingPosition = packStartPosition +
+                new Vector3(0f, -0.28f, reducedMotion ? 0.45f : 1.35f);
+            Vector3 incomingScale = packStartScale * (reducedMotion ? 0.88f : 0.64f);
+
+            packRoot.gameObject.SetActive(true);
+            packRoot.localPosition = incomingPosition;
+            packRoot.localRotation = packStartRotation *
+                Quaternion.Euler(-7f, spinDegrees, -9f);
+            packRoot.localScale = incomingScale;
+            owner.SampleAuthoredPresentation(0f);
+
+            yield return Tween(0.16f, value => { });
+            yield return Tween(1.08f * motion, value =>
+            {
+                float eased = EaseOutCubic(value);
+                float landed = EaseOutBack(value);
+                float remainingSpin = spinDegrees * (1f - eased);
+
+                packRoot.localPosition = Vector3.LerpUnclamped(
+                    incomingPosition,
+                    packStartPosition,
+                    landed);
+                packRoot.localRotation = packStartRotation * Quaternion.Euler(
+                    Mathf.Lerp(-7f, 0f, eased),
+                    remainingSpin,
+                    Mathf.Lerp(-9f, 0f, eased));
+                packRoot.localScale = Vector3.LerpUnclamped(
+                    incomingScale,
+                    packStartScale,
+                    landed);
+                owner.SampleAuthoredPresentation(value);
+            });
+
+            packRoot.localPosition = packStartPosition;
+            packRoot.localRotation = packStartRotation;
+            packRoot.localScale = packStartScale;
+            presentationIdle = true;
+            idleStartedAt = Time.unscaledTime;
+            owner.NotifyPresentationComplete();
+            sequence = null;
+        }
+
         private IEnumerator PlaySequence(PackRipController owner, bool reducedMotion)
         {
             float motion = reducedMotion ? reducedMotionMultiplier : 1f;
             float startingTear = owner.TearProgress;
+            Vector3 openingPackPosition = packRoot == null
+                ? packStartPosition
+                : packRoot.localPosition;
+            Quaternion openingPackRotation = packRoot == null
+                ? packStartRotation
+                : packRoot.localRotation;
+            Vector3 openingPackScale = packRoot == null
+                ? packStartScale
+                : packRoot.localScale;
+            Vector3 perspectivePosition = packStartPosition + new Vector3(0.12f, 0.08f, -0.18f);
+            Quaternion perspectiveRotation = packStartRotation * Quaternion.Euler(9f, -18f, -4f);
+            Vector3 perspectiveScale = Vector3.Scale(
+                packStartScale,
+                new Vector3(1.07f, 0.94f, 1f));
 
-            yield return Tween(0.46f * motion, value =>
+            yield return Tween(0.58f * motion, value =>
             {
                 float eased = Mathf.SmoothStep(0f, 1f, value);
                 float release = Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(0.28f, 1f, value));
@@ -144,11 +266,23 @@ namespace Rippies.Reveal
                     1f,
                     Mathf.InverseLerp(0.42f, 1f, value)));
 
-                if (packRoot != null)
+                if (!owner.HasAuthoredPack && packRoot != null)
                 {
+                    float perspectiveEase = Mathf.SmoothStep(
+                        0f,
+                        1f,
+                        Mathf.InverseLerp(0.08f, 0.82f, value));
+                    packRoot.localPosition = Vector3.Lerp(
+                        openingPackPosition,
+                        perspectivePosition,
+                        perspectiveEase);
+                    packRoot.localRotation = Quaternion.Slerp(
+                        openingPackRotation,
+                        perspectiveRotation,
+                        perspectiveEase);
                     packRoot.localScale = Vector3.Lerp(
-                        packStartScale,
-                        Vector3.Scale(packStartScale, new Vector3(1.045f, 0.965f, 1f)),
+                        openingPackScale,
+                        perspectiveScale,
                         eased);
                 }
 
@@ -159,17 +293,18 @@ namespace Rippies.Reveal
             });
 
             owner.NotifyOpening();
-            if (card != null)
+            if (!owner.HasAuthoredPack && card != null)
             {
                 card.gameObject.SetActive(true);
             }
 
-            Vector3 emergePosition = new Vector3(0f, 1.28f, -0.7f);
-            Vector3 earlyPackDrop = packStartPosition + new Vector3(0f, -0.82f, 0.25f);
+            Vector3 emergePosition = new Vector3(0f, 1.18f, -0.92f);
+            Vector3 earlyPackDrop = packStartPosition + new Vector3(-0.1f, -1.08f, 0.52f);
             yield return Tween(0.78f * motion, value =>
             {
                 float eased = EaseOutBack(value);
-                if (card != null)
+                owner.SampleAuthoredOpening(value);
+                if (!owner.HasAuthoredPack && card != null)
                 {
                     card.localPosition = Vector3.LerpUnclamped(cardStartPosition, emergePosition, eased);
                     card.localRotation = Quaternion.Slerp(
@@ -178,18 +313,36 @@ namespace Rippies.Reveal
                         Mathf.SmoothStep(0f, 1f, value));
                 }
 
-                if (packRoot != null)
+                if (!owner.HasAuthoredPack && packRoot != null)
                 {
                     float packEase = Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(0.18f, 1f, value));
-                    packRoot.localPosition = Vector3.Lerp(packStartPosition, earlyPackDrop, packEase);
+                    packRoot.localPosition = Vector3.Lerp(
+                        perspectivePosition,
+                        earlyPackDrop,
+                        packEase);
                     packRoot.localRotation = Quaternion.Slerp(
-                        packStartRotation,
-                        packStartRotation * Quaternion.Euler(0f, 0f, -3f),
+                        perspectiveRotation,
+                        packStartRotation * Quaternion.Euler(14f, 24f, -9f),
+                        packEase);
+                    packRoot.localScale = Vector3.Lerp(
+                        perspectiveScale,
+                        Vector3.Scale(packStartScale, new Vector3(1.14f, 0.88f, 0.96f)),
                         packEase);
                 }
             });
 
             owner.NotifyCardVisible();
+            interactiveCard = ResolveInteractiveCard(owner);
+            softOrbit?.SetCard(interactiveCard);
+            Vector3 interactiveStartPosition = interactiveCard == null
+                ? Vector3.zero
+                : interactiveCard.localPosition;
+            Quaternion interactiveStartRotation = interactiveCard == null
+                ? Quaternion.identity
+                : interactiveCard.localRotation;
+            Vector3 interactiveStartScale = interactiveCard == null
+                ? Vector3.one
+                : interactiveCard.localScale;
             Vector3 finalCardPosition = new Vector3(0f, 0.02f, -1.6f);
             Vector3 packDropPosition = packStartPosition + new Vector3(-0.35f, -5.2f, 1.15f);
             yield return Tween(0.82f * motion, value =>
@@ -200,23 +353,31 @@ namespace Rippies.Reveal
                 {
                     packRoot.localPosition = Vector3.Lerp(earlyPackDrop, packDropPosition, fall);
                     packRoot.localRotation = Quaternion.Slerp(
-                        packStartRotation * Quaternion.Euler(0f, 0f, -3f),
+                        packStartRotation * Quaternion.Euler(14f, 24f, -9f),
                         packStartRotation * Quaternion.Euler(4f, -6f, -18f),
                         fall);
                     packRoot.localScale = Vector3.Lerp(
-                        Vector3.Scale(packStartScale, new Vector3(1.045f, 0.965f, 1f)),
+                        Vector3.Scale(packStartScale, new Vector3(1.14f, 0.88f, 0.96f)),
                         packStartScale * 0.72f,
                         fall);
                 }
 
-                if (card != null)
+                if (!owner.HasAuthoredPack && interactiveCard != null)
                 {
-                    card.localPosition = Vector3.Lerp(emergePosition, finalCardPosition, eased);
-                    card.localRotation = Quaternion.Slerp(
-                        Quaternion.Euler(0f, 10f, -2f),
+                    interactiveCard.localPosition = Vector3.Lerp(
+                        interactiveStartPosition,
+                        finalCardPosition,
+                        eased);
+                    interactiveCard.localRotation = Quaternion.Slerp(
+                        interactiveStartRotation,
                         Quaternion.identity,
                         eased);
-                    card.localScale = Vector3.Lerp(cardStartScale, cardStartScale * 1.05f, eased);
+                    interactiveCard.localScale = Vector3.Lerp(
+                        interactiveStartScale,
+                        owner.HasAuthoredPack
+                            ? interactiveStartScale
+                            : cardStartScale * 1.05f,
+                        eased);
                 }
             });
 
@@ -226,32 +387,34 @@ namespace Rippies.Reveal
             }
 
             revealGlow?.SetRevealAmount(1f);
+            owner.SampleAuthoredOpening(1f);
             owner.NotifyRevealComplete();
             sequence = null;
         }
 
         private IEnumerator CloseSequence(PackRipController owner)
         {
-            Vector3 startingPosition = card == null ? Vector3.zero : card.localPosition;
-            Quaternion startingRotation = card == null ? Quaternion.identity : card.localRotation;
-            Vector3 startingScale = card == null ? Vector3.one : card.localScale;
+            Transform closingCard = interactiveCard;
+            Vector3 startingPosition = closingCard == null ? Vector3.zero : closingCard.localPosition;
+            Quaternion startingRotation = closingCard == null ? Quaternion.identity : closingCard.localRotation;
+            Vector3 startingScale = closingCard == null ? Vector3.one : closingCard.localScale;
 
             yield return Tween(ProductDesignLanguage.StandardSeconds, value =>
             {
                 float eased = Mathf.SmoothStep(0f, 1f, value);
                 revealGlow?.SetRevealAmount(1f - eased * 0.72f);
 
-                if (card != null)
+                if (closingCard != null)
                 {
-                    card.localPosition = Vector3.Lerp(
+                    closingCard.localPosition = Vector3.Lerp(
                         startingPosition,
                         startingPosition + new Vector3(0f, -0.42f, 0.9f),
                         eased);
-                    card.localRotation = Quaternion.Slerp(
+                    closingCard.localRotation = Quaternion.Slerp(
                         startingRotation,
                         startingRotation * Quaternion.Euler(5f, 18f, -3f),
                         eased);
-                    card.localScale = Vector3.Lerp(
+                    closingCard.localScale = Vector3.Lerp(
                         startingScale,
                         startingScale * 0.88f,
                         eased);
@@ -265,6 +428,23 @@ namespace Rippies.Reveal
 
             owner.NotifyCollectionRequested();
             sequence = null;
+        }
+
+        private Transform ResolveInteractiveCard(PackRipController owner)
+        {
+            if (!owner.HasAuthoredPack)
+            {
+                return card;
+            }
+
+            Transform authoredCard = owner.TakeOverAuthoredCard(
+                card == null ? transform : card.parent);
+            if (card != null)
+            {
+                card.gameObject.SetActive(false);
+            }
+
+            return authoredCard;
         }
 
         private void SetPackPresentedPose()
@@ -305,6 +485,12 @@ namespace Rippies.Reveal
             float shifted = value - 1f;
             return 1f + (overshoot + 1f) * shifted * shifted * shifted +
                 overshoot * shifted * shifted;
+        }
+
+        private static float EaseOutCubic(float value)
+        {
+            float shifted = 1f - value;
+            return 1f - shifted * shifted * shifted;
         }
     }
 }

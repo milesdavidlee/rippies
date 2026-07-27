@@ -2,6 +2,7 @@ import React from 'react';
 import {Pressable, StyleSheet, Text, View} from 'react-native';
 
 import {tokens} from '../design/tokens';
+import {NativeGlassView} from './NativeGlassView';
 
 export type AppTab = 'discover' | 'collection' | 'profile';
 
@@ -19,6 +20,7 @@ type Props = {
 export function TabBar({activeTab, onChange}: Props) {
   return (
     <View style={styles.container}>
+      <NativeGlassView pointerEvents="none" style={styles.glass} />
       {tabs.map(tab => {
         const active = activeTab === tab.id;
         return (
@@ -41,17 +43,28 @@ export function TabBar({activeTab, onChange}: Props) {
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: 'rgba(17,20,30,0.96)',
-    borderColor: tokens.color.line,
+    backgroundColor: 'transparent',
     borderRadius: tokens.radius.lg,
-    borderWidth: 1,
     bottom: 10,
     flexDirection: 'row',
     left: 14,
+    overflow: 'hidden',
     paddingHorizontal: 8,
     paddingVertical: 7,
     position: 'absolute',
     right: 14,
+    shadowColor: '#000000',
+    shadowOffset: {width: 0, height: 12},
+    shadowOpacity: 0.28,
+    shadowRadius: 24,
+  },
+  glass: {
+    bottom: 0,
+    left: 0,
+    position: 'absolute',
+    right: 0,
+    top: 0,
+    borderRadius: tokens.radius.lg,
   },
   tab: {
     alignItems: 'center',
@@ -70,5 +83,8 @@ const styles = StyleSheet.create({
   },
   active: {
     color: tokens.color.cyan,
+    textShadowColor: 'rgba(112, 230, 255, 0.38)',
+    textShadowOffset: {width: 0, height: 0},
+    textShadowRadius: 10,
   },
 });

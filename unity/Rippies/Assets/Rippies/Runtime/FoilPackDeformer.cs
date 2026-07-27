@@ -151,6 +151,26 @@ public void ApplyTearProgress(float value)
                     float direction = info.IsFront ? -1f : 1f;
                     vertex.z += direction * mouthOpen * 0.3f;
                     vertex.y -= mouthOpen * 0.085f;
+
+                    if (released > 0f)
+                    {
+                        float distanceBelowSeam = Mathf.Clamp01(
+                            (JaggedSeam(info.X01) - info.Y) / Mathf.Max(0.01f, height));
+                        float peel = 1f - Mathf.SmoothStep(0f, 0.7f, distanceBelowSeam);
+                        float sideDirection = Mathf.Sign(info.X01 - 0.5f);
+                        float centerDistance = Mathf.Abs(info.X01 - 0.5f) * 2f;
+
+                        vertex.x += sideDirection *
+                            Mathf.Lerp(0.12f, 0.58f, centerDistance) *
+                            peel *
+                            released;
+                        vertex.z += direction *
+                            Mathf.Lerp(0.16f, 0.86f, peel) *
+                            released;
+                        vertex.y -=
+                            (0.12f + peel * 0.42f + centerDistance * 0.1f) *
+                            released;
+                    }
                 }
 
                 deformedVertices[i] = vertex;

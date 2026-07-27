@@ -17,6 +17,7 @@ namespace Rippies.Reveal
         [SerializeField] private GeneratedCardPresenter cardPresenter;
         [SerializeField] private RevealDirector revealDirector;
         [SerializeField] private SwipeTearInteractor interactor;
+        [SerializeField] private AuthoredPackDriver authoredPack;
         [SerializeField] private float commitThreshold = 0.94f;
         [SerializeField] private bool reducedMotion;
 
@@ -35,6 +36,7 @@ namespace Rippies.Reveal
         public RevealPayload Payload => payload;
         public Color AccentColor => accentColor;
         public bool IsClosing => closing;
+        public bool HasAuthoredPack => authoredPack != null && authoredPack.IsAvailable;
         public bool AcceptsTearInput =>
             State == RipState.Ready ||
             State == RipState.Grabbing ||
@@ -61,6 +63,11 @@ namespace Rippies.Reveal
             stripStartPosition = topStrip == null ? Vector3.zero : topStrip.localPosition;
             stripStartRotation = topStrip == null ? Quaternion.identity : topStrip.localRotation;
             packStartScale = transform.localScale;
+
+            authoredPack ??= GetComponent<AuthoredPackDriver>();
+            authoredPack ??= gameObject.AddComponent<AuthoredPackDriver>();
+            authoredPack.Initialize(transform.Find("PackShellVisuals"));
+            revealDirector?.SetAuthoredPackAvailable(HasAuthoredPack);
         }
 
         private void Start()
@@ -71,11 +78,16 @@ namespace Rippies.Reveal
         public void PrepareReveal(RevealPayload revealPayload)
         {
             payload = revealPayload ?? DemoCardFactory.CreateRandom();
+            // Restore the authored hierarchy before touching the next card.
+            // Unity stays resident between pack openings, so this ordering
+            // prevents presentation-pivot transforms from leaking forward.
+            ResetReveal();
             cardPresenter?.Apply(payload.card);
+            authoredPack?.SetCard(payload.card);
             ApplyPackPalette(payload.card);
             ApplyPackIdentity(payload.packTypeId);
-            ResetReveal();
-            SetState(RipState.Ready);
+            SetState(RipState.Presenting);
+            revealDirector?.PlayPresentation(this, reducedMotion);
             Emit("sceneReady", payload.revealId);
         }
 
@@ -94,6 +106,7 @@ namespace Rippies.Reveal
             SetState(RipState.Tearing);
             TearProgress = Mathf.Max(TearProgress, Mathf.Clamp01(value));
             ApplyTearVisuals(TearProgress);
+            authoredPack?.SampleSwipe(TearProgress);
             TearProgressChanged?.Invoke(TearProgress);
 
             if (TearProgress >= commitThreshold)
@@ -107,6 +120,7 @@ namespace Rippies.Reveal
             TearProgress = Mathf.Max(TearProgress, Mathf.Clamp01(progress));
             ApplyTearVisuals(TearProgress);
             foilPack?.ApplyStripRelease(release);
+            authoredPack?.SampleCommittedTear(release);
             TearProgressChanged?.Invoke(TearProgress);
         }
 
@@ -149,6 +163,7 @@ namespace Rippies.Reveal
             foilPack?.ApplyStripRelease(0f);
             SetPackLabelsVisible(true);
             revealDirector?.ResetSequence();
+            authoredPack?.ResetModel();
             interactor?.ResetInteraction();
             ApplyTearVisuals(0f);
             SetState(RipState.Loading);
@@ -158,6 +173,29 @@ namespace Rippies.Reveal
         {
             SetPackLabelsVisible(false);
             SetState(RipState.Opening);
+        }
+
+        public void NotifyPresentationComplete()
+        {
+            if (State == RipState.Presenting)
+            {
+                SetState(RipState.Ready);
+            }
+        }
+
+        public void SampleAuthoredPresentation(float progress)
+        {
+            authoredPack?.SamplePresentation(progress);
+        }
+
+        public void SampleAuthoredOpening(float progress)
+        {
+            authoredPack?.SampleOpening(progress);
+        }
+
+        public Transform TakeOverAuthoredCard(Transform presentationParent)
+        {
+            return authoredPack?.TakeOverCard(presentationParent);
         }
 
         public void NotifyCardVisible()
@@ -213,6 +251,7 @@ namespace Rippies.Reveal
             ApplyPalette(packBody, bodyProperties, baseColor, accent);
             ApplyPalette(topStripRenderer, stripProperties, baseColor, accent);
             revealDirector?.SetPalette(accent);
+            authoredPack?.SetAccent(accent);
 
             Transform wordmark = transform.Find("PackWordmark");
             Transform subtitle = transform.Find("PackSubtitle");

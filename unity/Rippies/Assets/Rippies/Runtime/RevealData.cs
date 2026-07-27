@@ -6,6 +6,7 @@ namespace Rippies.Reveal
     public enum RipState
     {
         Loading,
+        Presenting,
         Ready,
         Grabbing,
         Tearing,
