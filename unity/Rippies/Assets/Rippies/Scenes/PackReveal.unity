@@ -1114,6 +1114,8 @@ MonoBehaviour:
   controller: {fileID: 95161384}
   maximumStartProgress: 0.25
   allowedBacktrack: 0.025
+  verticalDragScreenFraction: 0.34
+  directionLockDistance: 10
   smoothing: 18
 --- !u!114 &814393596
 MonoBehaviour:
@@ -1133,6 +1135,10 @@ MonoBehaviour:
   revealLight: {fileID: 1523361645}
   revealGlow: {fileID: 288373810}
   reducedMotionMultiplier: 0.35
+  standardMotionMultiplier: 1.45
+  packDragSensitivity: 0.22
+  maximumPackPitch: 28
+  packRotationSmoothing: 12
 --- !u!4 &814393597
 Transform:
   m_ObjectHideFlags: 0

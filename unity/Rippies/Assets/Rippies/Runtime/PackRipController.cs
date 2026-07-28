@@ -185,6 +185,23 @@ namespace Rippies.Reveal
             }
         }
 
+        public bool IsScreenPointOverPack(Vector2 screenPoint)
+        {
+            return AcceptsTearInput &&
+                revealDirector != null &&
+                revealDirector.IsScreenPointOverPresentedPack(screenPoint);
+        }
+
+        public void RotatePresentedPack(Vector2 screenDelta)
+        {
+            if (!AcceptsTearInput || committed)
+            {
+                return;
+            }
+
+            revealDirector?.RotatePresentedPack(screenDelta);
+        }
+
         public void SkipReveal()
         {
             if (State == RipState.Complete)

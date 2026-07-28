@@ -61,6 +61,10 @@ Implemented:
 - Selected `packTypeId`, palette, and generated card payload pass through `NativeRevealBridge`.
 - Experience-specific constrained input: Silver starts on the top seam and
   pulls vertically down; Loot pack retains its left-to-right tear guide.
+- Before tearing, the sealed pack can be rotated directly in 3D. Direction
+  locking keeps a downward Silver seam pull or rightward Loot seam pull mapped
+  to tearing, while sideways drags over the visible pack rotate it with
+  unrestricted yaw and bounded pitch.
 - Gesture release applies the furthest sampled progress immediately, so a
   quick valid pull cannot stall below the cinematic commit threshold.
 - Procedurally inflated foil geometry with crimping, wrinkles, and jagged seam.
@@ -97,6 +101,7 @@ Collection tab
   -> matching Unity pack crossfades full screen
   -> follow the selected experience's minimal sentence-case tear prompt
      and subtle directional light sweep behind the pack
+  -> optionally drag sideways to turn the sealed pack in 3D
   -> Unity animates strip, pack, glow, and the primary assigned card
   -> five assigned cards fan out and settle into a 3/2 grid
   -> revealComplete keeps Unity visible in inspect mode
@@ -184,6 +189,9 @@ Its ready pose is scaled to a smaller presentation frame with clear space on
 all sides. The product overlay intentionally omits state pills and explicit
 start-to-finish rails; a low-opacity top-to-bottom light sweep provides the
 Silver pull cue, while the Loot experience uses a left-to-right sweep.
+The standard pack arrival is played at `1.35x` duration and the committed
+opening/fan/grid choreography at `1.45x` duration. This changes pacing only:
+the source GLB clip ranges and authored poses remain untouched.
 
 At reveal preparation, `CardFaceTextureFactory` derives deterministic front
 and back artwork from the immutable `CardPayload` and selected `packTypeId`.
@@ -490,12 +498,14 @@ Before merging Unity reveal work:
 4. Select a pack with mouse and touch input.
 5. Confirm it animates to the hero position.
 6. Confirm the payload `packTypeId` and palette match the selection.
-7. Pull Silver vertically from its top seam; tear Loot pack left to right.
-8. Confirm the strip and pack leave the frame.
-9. Confirm glow does not intersect the angled card.
-10. Confirm the state reaches `Complete`.
-11. Return to the pack grid.
-12. Confirm the Unity console contains no errors.
+7. Drag the sealed pack sideways and confirm it rotates without starting a tear.
+8. Pull Silver vertically from its top seam; tear Loot pack left to right.
+9. Confirm the inspected pack angle eases into the cinematic without snapping.
+10. Confirm the strip and pack leave the frame.
+11. Confirm glow does not intersect the angled card.
+12. Confirm the state reaches `Complete`.
+13. Return to the pack grid.
+14. Confirm the Unity console contains no errors.
 
 ## Next implementation milestone
 

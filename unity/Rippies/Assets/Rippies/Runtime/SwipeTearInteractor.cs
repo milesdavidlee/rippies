@@ -7,6 +7,14 @@ namespace Rippies.Reveal
 {
     public sealed class SwipeTearInteractor : MonoBehaviour
     {
+        private enum PointerMode
+        {
+            None,
+            Pending,
+            Tearing,
+            Rotating
+        }
+
         [SerializeField] private Camera sceneCamera;
         [SerializeField] private Collider touchPlane;
         [SerializeField] private TearGuide tearGuide;
@@ -14,6 +22,7 @@ namespace Rippies.Reveal
         [SerializeField, Range(0f, 0.4f)] private float maximumStartProgress = 0.25f;
         [SerializeField, Range(0f, 0.1f)] private float allowedBacktrack = 0.025f;
         [SerializeField, Range(0.2f, 0.6f)] private float verticalDragScreenFraction = 0.34f;
+        [SerializeField, Range(4f, 24f)] private float directionLockDistance = 10f;
         [SerializeField] private float smoothing = 18f;
 
         private float displayedProgress;
@@ -21,7 +30,11 @@ namespace Rippies.Reveal
         private float gestureStartProjected;
         private float gestureStartScreenY;
         private float gestureStartProgress;
+        private Vector2 pointerStartScreenPoint;
         private Vector2 lastPointerScreenPoint;
+        private PointerMode pointerMode;
+        private bool tearCandidate;
+        private bool rotationCandidate;
         private bool pointerActive;
 
         private void OnEnable()
@@ -33,6 +46,7 @@ namespace Rippies.Reveal
         {
             EnhancedTouchSupport.Disable();
             pointerActive = false;
+            pointerMode = PointerMode.None;
         }
 
         private void Update()
@@ -89,36 +103,64 @@ namespace Rippies.Reveal
 
         private void TryBeginPointer(Vector2 screenPoint)
         {
+            pointerStartScreenPoint = screenPoint;
             lastPointerScreenPoint = screenPoint;
+            rotationCandidate = controller.IsScreenPointOverPack(screenPoint);
             if (controller.UsesVerticalTearGesture)
             {
-                if (!HitsTouchPlane(screenPoint))
+                tearCandidate = HitsTouchPlane(screenPoint);
+                if (!tearCandidate && !rotationCandidate)
                 {
                     pointerActive = false;
+                    pointerMode = PointerMode.None;
                     return;
                 }
 
                 pointerActive = true;
+                pointerMode = PointerMode.Pending;
                 gestureStartScreenY = screenPoint.y;
                 gestureStartProgress = furthestProgress;
                 return;
             }
 
-            if (!TryProject(screenPoint, out float projected) ||
-                projected > maximumStartProgress)
+            tearCandidate =
+                TryProject(screenPoint, out float projected) &&
+                projected <= maximumStartProgress;
+            if (!tearCandidate && !rotationCandidate)
             {
                 pointerActive = false;
+                pointerMode = PointerMode.None;
                 return;
             }
 
             pointerActive = true;
-            gestureStartProjected = projected;
+            pointerMode = PointerMode.Pending;
+            gestureStartProjected = tearCandidate ? projected : 0f;
             gestureStartProgress = furthestProgress;
         }
 
         private void UpdatePointer(Vector2 screenPoint)
         {
-            lastPointerScreenPoint = screenPoint;
+            if (pointerMode == PointerMode.Pending &&
+                !TryLockDirection(screenPoint))
+            {
+                return;
+            }
+
+            if (pointerMode == PointerMode.Rotating)
+            {
+                controller.RotatePresentedPack(
+                    screenPoint - lastPointerScreenPoint);
+                lastPointerScreenPoint = screenPoint;
+                return;
+            }
+
+            if (pointerMode != PointerMode.Tearing)
+            {
+                lastPointerScreenPoint = screenPoint;
+                return;
+            }
+
             float gestureProgress;
             if (controller.UsesVerticalTearGesture)
             {
@@ -149,6 +191,7 @@ namespace Rippies.Reveal
                 1f - Mathf.Exp(-smoothing * Time.unscaledDeltaTime));
 
             controller.SetTearProgress(displayedProgress);
+            lastPointerScreenPoint = screenPoint;
         }
 
         private void FinishPointer(Vector2 screenPoint)
@@ -159,12 +202,55 @@ namespace Rippies.Reveal
             }
 
             UpdatePointer(screenPoint);
+            if (pointerMode != PointerMode.Tearing)
+            {
+                pointerActive = false;
+                pointerMode = PointerMode.None;
+                return;
+            }
+
             // Apply the furthest sampled point immediately on release. Without
             // this, a quick valid pull can end while the smoothed display value
             // is still below the reveal commit threshold.
             displayedProgress = furthestProgress;
             controller.SetTearProgress(displayedProgress);
             pointerActive = false;
+            pointerMode = PointerMode.None;
+        }
+
+        private bool TryLockDirection(Vector2 screenPoint)
+        {
+            Vector2 delta = screenPoint - pointerStartScreenPoint;
+            if (delta.sqrMagnitude <
+                directionLockDistance * directionLockDistance)
+            {
+                return false;
+            }
+
+            bool verticalTear =
+                controller.UsesVerticalTearGesture &&
+                tearCandidate &&
+                -delta.y > Mathf.Abs(delta.x) * 1.12f;
+            bool horizontalTear =
+                !controller.UsesVerticalTearGesture &&
+                tearCandidate &&
+                delta.x > Mathf.Abs(delta.y) * 1.12f;
+
+            if (verticalTear || horizontalTear)
+            {
+                pointerMode = PointerMode.Tearing;
+                return true;
+            }
+
+            if (rotationCandidate)
+            {
+                pointerMode = PointerMode.Rotating;
+                return true;
+            }
+
+            pointerActive = false;
+            pointerMode = PointerMode.None;
+            return false;
         }
 
         private bool HitsTouchPlane(Vector2 screenPoint)
@@ -204,7 +290,11 @@ namespace Rippies.Reveal
             gestureStartProjected = 0f;
             gestureStartScreenY = 0f;
             gestureStartProgress = 0f;
+            pointerStartScreenPoint = Vector2.zero;
             lastPointerScreenPoint = Vector2.zero;
+            pointerMode = PointerMode.None;
+            tearCandidate = false;
+            rotationCandidate = false;
             pointerActive = false;
         }
     }

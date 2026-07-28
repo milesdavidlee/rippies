@@ -13,6 +13,10 @@ namespace Rippies.Reveal
         [SerializeField] private RevealGlowPulse revealGlow;
         [SerializeField] private SoftOrbitCamera softOrbit;
         [SerializeField] private float reducedMotionMultiplier = 0.35f;
+        [SerializeField, Range(1f, 2f)] private float standardMotionMultiplier = 1.45f;
+        [SerializeField, Range(0.08f, 0.5f)] private float packDragSensitivity = 0.22f;
+        [SerializeField, Range(10f, 45f)] private float maximumPackPitch = 28f;
+        [SerializeField] private float packRotationSmoothing = 12f;
 
         private Transform interactiveCard;
         private readonly List<Transform> interactiveCards = new List<Transform>();
@@ -26,6 +30,10 @@ namespace Rippies.Reveal
         private Coroutine sequence;
         private bool presentationIdle;
         private float idleStartedAt;
+        private float desiredPackYaw;
+        private float desiredPackPitch;
+        private float currentPackYaw;
+        private float currentPackPitch;
 
         public Transform CardTemplate => card;
 
@@ -45,11 +53,21 @@ namespace Rippies.Reveal
 
             float time = Time.unscaledTime - idleStartedAt;
             float hover = Mathf.Sin(time * 1.45f);
+            float rotationDamp =
+                1f - Mathf.Exp(-packRotationSmoothing * Time.unscaledDeltaTime);
+            currentPackYaw = Mathf.Lerp(
+                currentPackYaw,
+                desiredPackYaw,
+                rotationDamp);
+            currentPackPitch = Mathf.Lerp(
+                currentPackPitch,
+                desiredPackPitch,
+                rotationDamp);
             packRoot.localPosition = packStartPosition +
                 new Vector3(0f, hover * 0.045f, 0f);
             packRoot.localRotation = packStartRotation * Quaternion.Euler(
-                Mathf.Sin(time * 0.72f) * 1.4f,
-                Mathf.Sin(time * 0.58f + 0.4f) * 3.8f,
+                currentPackPitch + Mathf.Sin(time * 0.72f) * 1.4f,
+                currentPackYaw + Mathf.Sin(time * 0.58f + 0.4f) * 3.8f,
                 Mathf.Sin(time * 0.9f) * 0.8f);
             packRoot.localScale = packStartScale *
                 (1f + Mathf.Sin(time * 1.1f + 0.7f) * 0.006f);
@@ -83,6 +101,101 @@ namespace Rippies.Reveal
             {
                 card.gameObject.SetActive(!available);
             }
+        }
+
+        public bool IsScreenPointOverPresentedPack(Vector2 screenPoint)
+        {
+            Camera sceneCamera = Camera.main;
+            if (!presentationIdle ||
+                packRoot == null ||
+                sceneCamera == null)
+            {
+                return false;
+            }
+
+            Renderer[] renderers =
+                packRoot.GetComponentsInChildren<Renderer>(true);
+            bool hasBounds = false;
+            Bounds bounds = default;
+            foreach (Renderer renderer in renderers)
+            {
+                if (renderer == null ||
+                    !renderer.enabled ||
+                    !renderer.gameObject.activeInHierarchy)
+                {
+                    continue;
+                }
+
+                if (!hasBounds)
+                {
+                    bounds = renderer.bounds;
+                    hasBounds = true;
+                }
+                else
+                {
+                    bounds.Encapsulate(renderer.bounds);
+                }
+            }
+
+            if (!hasBounds)
+            {
+                return false;
+            }
+
+            Vector3 center = bounds.center;
+            Vector3 extents = bounds.extents;
+            float minimumX = float.PositiveInfinity;
+            float minimumY = float.PositiveInfinity;
+            float maximumX = float.NegativeInfinity;
+            float maximumY = float.NegativeInfinity;
+            bool hasVisibleCorner = false;
+            for (int corner = 0; corner < 8; corner++)
+            {
+                Vector3 worldPoint = center + Vector3.Scale(
+                    extents,
+                    new Vector3(
+                        (corner & 1) == 0 ? -1f : 1f,
+                        (corner & 2) == 0 ? -1f : 1f,
+                        (corner & 4) == 0 ? -1f : 1f));
+                Vector3 projected = sceneCamera.WorldToScreenPoint(worldPoint);
+                if (projected.z <= 0f)
+                {
+                    continue;
+                }
+
+                hasVisibleCorner = true;
+                minimumX = Mathf.Min(minimumX, projected.x);
+                minimumY = Mathf.Min(minimumY, projected.y);
+                maximumX = Mathf.Max(maximumX, projected.x);
+                maximumY = Mathf.Max(maximumY, projected.y);
+            }
+
+            if (!hasVisibleCorner)
+            {
+                return false;
+            }
+
+            const float screenPadding = 18f;
+            return new Rect(
+                minimumX - screenPadding,
+                minimumY - screenPadding,
+                maximumX - minimumX + screenPadding * 2f,
+                maximumY - minimumY + screenPadding * 2f)
+                .Contains(screenPoint);
+        }
+
+        public void RotatePresentedPack(Vector2 screenDelta)
+        {
+            if (!presentationIdle)
+            {
+                return;
+            }
+
+            desiredPackYaw += screenDelta.x * packDragSensitivity;
+            desiredPackPitch = Mathf.Clamp(
+                desiredPackPitch - screenDelta.y * packDragSensitivity,
+                -maximumPackPitch,
+                maximumPackPitch);
         }
 
         public void PlayPresentation(PackRipController owner, bool reducedMotion)
@@ -171,6 +284,7 @@ namespace Rippies.Reveal
             }
 
             presentationIdle = false;
+            ResetPackInspectionRotation();
             revealGlow?.SetRevealAmount(0f);
             cardGroup?.DisposeCopies();
             cardGroup = null;
@@ -209,7 +323,7 @@ namespace Rippies.Reveal
                 yield break;
             }
 
-            float motion = reducedMotion ? 0.58f : 1f;
+            float motion = reducedMotion ? 0.58f : 1.35f;
             float spinDegrees = reducedMotion ? 38f : 240f;
             Vector3 incomingPosition = packStartPosition +
                 new Vector3(0f, -0.28f, reducedMotion ? 0.45f : 1.35f);
@@ -222,7 +336,7 @@ namespace Rippies.Reveal
             packRoot.localScale = incomingScale;
             owner.SampleAuthoredPresentation(0f);
 
-            yield return Tween(0.16f, value => { });
+            yield return Tween(reducedMotion ? 0.1f : 0.22f, value => { });
             yield return Tween(1.08f * motion, value =>
             {
                 float eased = EaseOutCubic(value);
@@ -255,7 +369,9 @@ namespace Rippies.Reveal
 
         private IEnumerator PlaySequence(PackRipController owner, bool reducedMotion)
         {
-            float motion = reducedMotion ? reducedMotionMultiplier : 1f;
+            float motion = reducedMotion
+                ? reducedMotionMultiplier
+                : standardMotionMultiplier;
             float startingTear = owner.TearProgress;
             Vector3 openingPackPosition = packRoot == null
                 ? packStartPosition
@@ -299,6 +415,21 @@ namespace Rippies.Reveal
                     packRoot.localScale = Vector3.Lerp(
                         openingPackScale,
                         perspectiveScale,
+                        eased);
+                }
+                else if (packRoot != null)
+                {
+                    packRoot.localPosition = Vector3.Lerp(
+                        openingPackPosition,
+                        packStartPosition,
+                        eased);
+                    packRoot.localRotation = Quaternion.Slerp(
+                        openingPackRotation,
+                        packStartRotation,
+                        eased);
+                    packRoot.localScale = Vector3.Lerp(
+                        openingPackScale,
+                        packStartScale,
                         eased);
                 }
 
@@ -636,6 +767,14 @@ namespace Rippies.Reveal
             }
 
             update(1f);
+        }
+
+        private void ResetPackInspectionRotation()
+        {
+            desiredPackYaw = 0f;
+            desiredPackPitch = 0f;
+            currentPackYaw = 0f;
+            currentPackPitch = 0f;
         }
 
         private static float EaseOutBack(float value)

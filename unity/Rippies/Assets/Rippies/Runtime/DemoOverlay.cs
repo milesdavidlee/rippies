@@ -110,8 +110,8 @@ namespace Rippies.Reveal
             GUI.Label(
                 new Rect(contentX, contentY + 27f, contentWidth, 22f),
                 controller.UsesVerticalTearGesture
-                    ? "Start at the top seam and pull down."
-                    : "Drag across the top seam from left to right.",
+                    ? "Pull down from the top seam · drag sideways to turn."
+                    : "Tear across the top seam · drag elsewhere to turn.",
                 productCenteredDetailStyle);
         }
 
