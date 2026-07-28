@@ -1114,7 +1114,7 @@ MonoBehaviour:
   controller: {fileID: 95161384}
   maximumStartProgress: 0.25
   allowedBacktrack: 0.025
-  verticalDragScreenFraction: 0.34
+  verticalDragScreenFraction: 0.46
   directionLockDistance: 10
   smoothing: 18
 --- !u!114 &814393596
@@ -1136,6 +1136,12 @@ MonoBehaviour:
   revealGlow: {fileID: 288373810}
   reducedMotionMultiplier: 0.35
   standardMotionMultiplier: 1.45
+  silverArrivalSeconds: 0.48
+  silverTearSeconds: 1.35
+  silverHeroSeconds: 0.78
+  silverSettleSeconds: 0
+  silverFanSeconds: 1.15
+  silverGlowStrength: 0
   packDragSensitivity: 0.22
   maximumPackPitch: 28
   packRotationSmoothing: 12

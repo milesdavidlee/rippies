@@ -14,6 +14,12 @@ namespace Rippies.Reveal
         [SerializeField] private SoftOrbitCamera softOrbit;
         [SerializeField] private float reducedMotionMultiplier = 0.35f;
         [SerializeField, Range(1f, 2f)] private float standardMotionMultiplier = 1.45f;
+        [SerializeField] private float silverArrivalSeconds = 0.48f;
+        [SerializeField] private float silverTearSeconds = 1.35f;
+        [SerializeField] private float silverHeroSeconds = 0.78f;
+        [SerializeField] private float silverSettleSeconds = 0f;
+        [SerializeField] private float silverFanSeconds = 1.15f;
+        [SerializeField, Range(0f, 0.25f)] private float silverGlowStrength = 0f;
         [SerializeField, Range(0.08f, 0.5f)] private float packDragSensitivity = 0.22f;
         [SerializeField, Range(10f, 45f)] private float maximumPackPitch = 28f;
         [SerializeField] private float packRotationSmoothing = 12f;
@@ -64,13 +70,12 @@ namespace Rippies.Reveal
                 desiredPackPitch,
                 rotationDamp);
             packRoot.localPosition = packStartPosition +
-                new Vector3(0f, hover * 0.045f, 0f);
+                new Vector3(0f, hover * 0.028f, 0f);
             packRoot.localRotation = packStartRotation * Quaternion.Euler(
-                currentPackPitch + Mathf.Sin(time * 0.72f) * 1.4f,
-                currentPackYaw + Mathf.Sin(time * 0.58f + 0.4f) * 3.8f,
-                Mathf.Sin(time * 0.9f) * 0.8f);
-            packRoot.localScale = packStartScale *
-                (1f + Mathf.Sin(time * 1.1f + 0.7f) * 0.006f);
+                currentPackPitch + Mathf.Sin(time * 0.72f) * 0.35f,
+                currentPackYaw + Mathf.Sin(time * 0.58f + 0.4f) * 0.65f,
+                Mathf.Sin(time * 0.9f) * 0.28f);
+            packRoot.localScale = packStartScale;
         }
 
         public void CaptureInitialPose()
@@ -231,7 +236,7 @@ namespace Rippies.Reveal
             presentationIdle = false;
             owner.SetCinematicTear(1f, 1f);
             owner.SampleAuthoredOpening(1f);
-            revealGlow?.SetRevealAmount(1f);
+            SetRevealGlow(owner, 1f);
             interactiveCard = ResolveInteractiveCard(owner);
             SetPackPresentedPose();
             if (interactiveCard != null)
@@ -255,7 +260,7 @@ namespace Rippies.Reveal
 
             if (revealLight != null)
             {
-                revealLight.intensity = 4.5f;
+                revealLight.intensity = RevealLightIntensity(owner, 4.5f);
             }
 
             owner.NotifyOpening();
@@ -323,11 +328,19 @@ namespace Rippies.Reveal
                 yield break;
             }
 
+            bool centeredSilver = owner.UsesAuthoredCardFan;
             float motion = reducedMotion ? 0.58f : 1.35f;
-            float spinDegrees = reducedMotion ? 38f : 240f;
+            float spinDegrees = centeredSilver
+                ? 0f
+                : reducedMotion
+                    ? 38f
+                    : 240f;
             Vector3 incomingPosition = packStartPosition +
-                new Vector3(0f, -0.28f, reducedMotion ? 0.45f : 1.35f);
-            Vector3 incomingScale = packStartScale * (reducedMotion ? 0.88f : 0.64f);
+                (centeredSilver
+                    ? new Vector3(0f, -0.12f, 0.22f)
+                    : new Vector3(0f, -0.28f, reducedMotion ? 0.45f : 1.35f));
+            Vector3 incomingScale = packStartScale *
+                (centeredSilver ? 0.91f : reducedMotion ? 0.88f : 0.64f);
 
             packRoot.gameObject.SetActive(true);
             packRoot.localPosition = incomingPosition;
@@ -336,8 +349,15 @@ namespace Rippies.Reveal
             packRoot.localScale = incomingScale;
             owner.SampleAuthoredPresentation(0f);
 
-            yield return Tween(reducedMotion ? 0.1f : 0.22f, value => { });
-            yield return Tween(1.08f * motion, value =>
+            yield return Tween(
+                centeredSilver ? 0.04f : reducedMotion ? 0.1f : 0.22f,
+                value => { });
+            float arrivalDuration = centeredSilver
+                ? reducedMotion
+                    ? silverArrivalSeconds * reducedMotionMultiplier
+                    : silverArrivalSeconds
+                : 1.08f * motion;
+            yield return Tween(arrivalDuration, value =>
             {
                 float eased = EaseOutCubic(value);
                 float landed = EaseOutBack(value);
@@ -369,6 +389,7 @@ namespace Rippies.Reveal
 
         private IEnumerator PlaySequence(PackRipController owner, bool reducedMotion)
         {
+            bool centeredSilver = owner.UsesAuthoredCardFan;
             float motion = reducedMotion
                 ? reducedMotionMultiplier
                 : standardMotionMultiplier;
@@ -388,12 +409,15 @@ namespace Rippies.Reveal
                 packStartScale,
                 new Vector3(1.07f, 0.94f, 1f));
 
-            yield return Tween(0.58f * motion, value =>
+            float tearDuration = centeredSilver && !reducedMotion
+                ? silverTearSeconds
+                : 0.58f * motion;
+            yield return Tween(tearDuration, value =>
             {
                 float eased = Mathf.SmoothStep(0f, 1f, value);
                 float release = Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(0.28f, 1f, value));
                 owner.SetCinematicTear(Mathf.Lerp(startingTear, 1f, eased), release);
-                revealGlow?.SetRevealAmount(Mathf.SmoothStep(
+                SetRevealGlow(owner, Mathf.SmoothStep(
                     0f,
                     1f,
                     Mathf.InverseLerp(0.42f, 1f, value)));
@@ -435,7 +459,9 @@ namespace Rippies.Reveal
 
                 if (revealLight != null)
                 {
-                    revealLight.intensity = Mathf.Lerp(0f, 5.2f, eased);
+                    revealLight.intensity = RevealLightIntensity(
+                        owner,
+                        Mathf.Lerp(0f, 5.2f, eased));
                 }
             });
 
@@ -447,7 +473,10 @@ namespace Rippies.Reveal
 
             Vector3 emergePosition = new Vector3(0f, 1.18f, -0.92f);
             Vector3 earlyPackDrop = packStartPosition + new Vector3(-0.1f, -1.08f, 0.52f);
-            yield return Tween(0.78f * motion, value =>
+            float heroDuration = centeredSilver && !reducedMotion
+                ? silverHeroSeconds
+                : 0.78f * motion;
+            yield return Tween(heroDuration, value =>
             {
                 float eased = EaseOutBack(value);
                 owner.SampleAuthoredOpening(value);
@@ -497,11 +526,14 @@ namespace Rippies.Reveal
                 : interactiveCard.localScale;
             Vector3 finalCardPosition = new Vector3(0f, 0.02f, -1.6f);
             Vector3 packDropPosition = packStartPosition + new Vector3(-0.35f, -5.2f, 1.15f);
-            yield return Tween(0.82f * motion, value =>
+            float settleDuration = centeredSilver && !reducedMotion
+                ? silverSettleSeconds
+                : 0.82f * motion;
+            yield return Tween(settleDuration, value =>
             {
                 float eased = Mathf.SmoothStep(0f, 1f, value);
                 float fall = value * value;
-                if (packRoot != null)
+                if (!owner.HasAuthoredPack && packRoot != null)
                 {
                     packRoot.localPosition = Vector3.Lerp(earlyPackDrop, packDropPosition, fall);
                     packRoot.localRotation = Quaternion.Slerp(
@@ -538,13 +570,16 @@ namespace Rippies.Reveal
                 packRoot.gameObject.SetActive(false);
             }
 
-            revealGlow?.SetRevealAmount(1f);
+            SetRevealGlow(owner, 1f);
             owner.SampleAuthoredOpening(1f);
             BuildCardGroup(owner, interactiveCard);
             if (cardGroup != null)
             {
                 cardGroup.SetRevealProgress(0f);
-                yield return Tween(0.84f * motion, value =>
+                float fanDuration = centeredSilver && !reducedMotion
+                    ? silverFanSeconds
+                    : 0.84f * motion;
+                yield return Tween(fanDuration, value =>
                 {
                     cardGroup.SetRevealProgress(EaseOutCubic(value));
                 });
@@ -565,11 +600,13 @@ namespace Rippies.Reveal
                 yield return Tween(ProductDesignLanguage.StandardSeconds, value =>
                 {
                     float eased = Mathf.SmoothStep(0f, 1f, value);
-                    revealGlow?.SetRevealAmount(1f - eased * 0.72f);
+                    SetRevealGlow(owner, 1f - eased * 0.72f);
                     cardGroup.SetCloseProgress(eased);
                     if (revealLight != null)
                     {
-                        revealLight.intensity = Mathf.Lerp(4.5f, 1.8f, eased);
+                        revealLight.intensity = RevealLightIntensity(
+                            owner,
+                            Mathf.Lerp(4.5f, 1.8f, eased));
                     }
                 });
 
@@ -602,7 +639,7 @@ namespace Rippies.Reveal
             yield return Tween(ProductDesignLanguage.StandardSeconds, value =>
             {
                 float eased = Mathf.SmoothStep(0f, 1f, value);
-                revealGlow?.SetRevealAmount(1f - eased * 0.72f);
+                SetRevealGlow(owner, 1f - eased * 0.72f);
 
                 if (closingCard != null)
                 {
@@ -622,7 +659,9 @@ namespace Rippies.Reveal
 
                 if (revealLight != null)
                 {
-                    revealLight.intensity = Mathf.Lerp(4.5f, 1.8f, eased);
+                    revealLight.intensity = RevealLightIntensity(
+                        owner,
+                        Mathf.Lerp(4.5f, 1.8f, eased));
                 }
             });
 
@@ -715,7 +754,24 @@ namespace Rippies.Reveal
                 Camera.main,
                 interactiveCards,
                 owner.IsInspectionMode || owner.UsesAuthoredCardFan,
-                owner.UsesAuthoredCardFan);
+                false);
+        }
+
+        private void SetRevealGlow(PackRipController owner, float amount)
+        {
+            float strength = owner != null && owner.UsesAuthoredCardFan
+                ? silverGlowStrength
+                : 1f;
+            revealGlow?.SetRevealAmount(amount * strength);
+        }
+
+        private static float RevealLightIntensity(
+            PackRipController owner,
+            float intensity)
+        {
+            return owner != null && owner.UsesAuthoredCardFan
+                ? Mathf.Min(intensity, 2.2f)
+                : intensity;
         }
 
         private static Transform CreateGeneratedCardCopy(

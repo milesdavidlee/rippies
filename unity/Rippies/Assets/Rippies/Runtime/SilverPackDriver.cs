@@ -20,7 +20,9 @@ namespace Rippies.Reveal
         private const float PacketGone = 1.6f;
         private const float CardFanStart = 1.8166667f;
         private const float CardFanEnd = 2.7833333f;
-        private const float TargetPackHeight = 3.58f;
+        private const float TargetPackHeight = 3.18f;
+        private const float HeroRevealStart = 0.16f;
+        private const float HeroRevealSettle = 0.72f;
 
         private static readonly int BaseColorFactorId =
             Shader.PropertyToID("baseColorFactor");
@@ -38,6 +40,7 @@ namespace Rippies.Reveal
 
         private Transform contentRoot;
         private Transform cardTemplate;
+        private Transform heroCardPivot;
         private AuthoredPackDriver authoredCardSource;
         private GameObject instance;
         private AnimationClip clip;
@@ -86,6 +89,7 @@ namespace Rippies.Reveal
             var rootObject = new GameObject("SilverPacketReveal");
             contentRoot = rootObject.transform;
             contentRoot.SetParent(packRoot, false);
+            contentRoot.localRotation = Quaternion.Euler(0f, 180f, 0f);
 
             instance = Instantiate(source, contentRoot);
             instance.name = "LootPacketSilver";
@@ -234,28 +238,30 @@ namespace Rippies.Reveal
         public void SamplePresentation(float progress)
         {
             SetGeneratedCardsVisible(false);
-            SampleAt(Mathf.Lerp(
-                ClosedTime,
-                BlowStart * 0.82f,
-                Mathf.Clamp01(progress)));
+            SampleAt(ClosedTime);
         }
 
         public void SampleSwipe(float progress)
         {
             SetGeneratedCardsVisible(false);
             SampleAt(Mathf.Lerp(
-                BlowStart * 0.82f,
+                ClosedTime,
                 BlowStart,
-                Mathf.Clamp01(progress)));
+                Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(progress))));
         }
 
         public void SampleCommittedTear(float progress)
         {
-            SetGeneratedCardsVisible(false);
+            float value = Mathf.Clamp01(progress);
             SampleAt(Mathf.Lerp(
                 BlowStart,
                 PacketGone,
-                Mathf.Clamp01(progress)));
+                Mathf.SmoothStep(0f, 1f, value)));
+            SetOnlyHeroVisible(false);
+            if (value >= HeroRevealStart)
+            {
+                EnsureCenteredHero(value);
+            }
         }
 
         public void SampleOpening(float progress)
@@ -264,7 +270,14 @@ namespace Rippies.Reveal
                 CardFanStart,
                 CardFanEnd,
                 Mathf.Clamp01(progress)));
-            SetGeneratedCardsVisible(true);
+            if (presentationCards.Count > 0)
+            {
+                SetGeneratedCardsVisible(true);
+                return;
+            }
+
+            SetOnlyHeroVisible(true);
+            EnsureCenteredHero(1f);
         }
 
         public IReadOnlyList<Transform> TakeOverCards(
@@ -294,6 +307,13 @@ namespace Rippies.Reveal
                 Transform visual = generatedCards[index];
                 if (visual == null)
                 {
+                    continue;
+                }
+
+                if (index == 0 && heroCardPivot != null)
+                {
+                    heroCardPivot.SetParent(presentationParent, true);
+                    presentationCards.Add(heroCardPivot);
                     continue;
                 }
 
@@ -417,6 +437,11 @@ namespace Rippies.Reveal
 
             generatedCards.Clear();
             presentationCards.Clear();
+            if (heroCardPivot != null)
+            {
+                Destroy(heroCardPivot.gameObject);
+                heroCardPivot = null;
+            }
         }
 
         private void FitToPack()
@@ -488,9 +513,83 @@ namespace Rippies.Reveal
             }
         }
 
+        private void SetOnlyHeroVisible(bool visible)
+        {
+            for (int index = 0; index < generatedCards.Count; index++)
+            {
+                Transform visual = generatedCards[index];
+                if (visual != null)
+                {
+                    visual.gameObject.SetActive(visible && index == 0);
+                }
+            }
+        }
+
+        private void EnsureCenteredHero(float progress)
+        {
+            if (generatedCards.Count == 0 || generatedCards[0] == null)
+            {
+                return;
+            }
+
+            Transform visual = generatedCards[0];
+            Camera sceneCamera = Camera.main;
+            Transform packTransform = contentRoot == null
+                ? null
+                : contentRoot.parent;
+            if (heroCardPivot == null)
+            {
+                TryGetRendererBounds(visual, out Bounds sourceBounds);
+                var pivotObject = new GameObject("SilverCenteredHeroCard");
+                heroCardPivot = pivotObject.transform;
+                Transform stableParent = packTransform == null
+                    ? transform
+                    : packTransform.parent;
+                heroCardPivot.SetParent(stableParent, true);
+                heroCardPivot.position = packTransform == null
+                    ? transform.position
+                    : packTransform.position;
+                heroCardPivot.rotation = sceneCamera == null
+                    ? visual.rotation
+                    : Quaternion.LookRotation(
+                        sceneCamera.transform.forward,
+                        sceneCamera.transform.up);
+                heroCardPivot.localScale = Vector3.one;
+
+                visual.SetParent(heroCardPivot, false);
+                visual.localPosition = Vector3.zero;
+                visual.localRotation = Quaternion.identity;
+                visual.localScale = Vector3.one;
+                FitVisualToBounds(
+                    visual,
+                    new Bounds(heroCardPivot.position, sourceBounds.size));
+            }
+
+            float reveal = Mathf.SmoothStep(
+                0f,
+                1f,
+                Mathf.InverseLerp(
+                    HeroRevealStart,
+                    HeroRevealSettle,
+                    Mathf.Clamp01(progress)));
+            Vector3 center = packTransform == null
+                ? transform.position
+                : packTransform.position;
+            if (sceneCamera != null)
+            {
+                center += sceneCamera.transform.forward *
+                    Mathf.Lerp(0.08f, -0.14f, reveal);
+            }
+
+            heroCardPivot.position = center;
+            heroCardPivot.localScale = Vector3.one *
+                Mathf.Lerp(0.84f, 1f, reveal);
+            visual.gameObject.SetActive(true);
+        }
+
         private void SampleAt(float time)
         {
-            if (!IsAvailable || clip == null || instance == null)
+            if (clip == null || instance == null)
             {
                 return;
             }

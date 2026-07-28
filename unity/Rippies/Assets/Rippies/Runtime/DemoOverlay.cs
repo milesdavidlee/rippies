@@ -99,10 +99,6 @@ namespace Rippies.Reveal
             float contentX = (logicalWidth - contentWidth) * 0.5f;
             float contentY = logicalHeight - 92f;
 
-            DrawGestureAmbience(
-                logicalWidth,
-                logicalHeight,
-                controller.UsesVerticalTearGesture);
             GUI.Label(
                 new Rect(contentX, contentY, contentWidth, 28f),
                 "Swipe to rip",
@@ -113,32 +109,6 @@ namespace Rippies.Reveal
                     ? "Pull down from the top seam · drag sideways to turn."
                     : "Tear across the top seam · drag elsewhere to turn.",
                 productCenteredDetailStyle);
-        }
-
-        private void DrawGestureAmbience(
-            float logicalWidth,
-            float logicalHeight,
-            bool vertical)
-        {
-            float cycle = Mathf.Repeat(Time.unscaledTime * 0.42f, 1f);
-            Color accent = controller.AccentColor;
-            float start = vertical ? 148f : 30f;
-            float travel = vertical
-                ? Mathf.Max(220f, logicalHeight - 330f)
-                : Mathf.Max(220f, logicalWidth - 60f);
-            float center = start + travel * cycle;
-
-            for (int index = 0; index < 5; index++)
-            {
-                float distance = Mathf.Abs(index - 2f);
-                float alpha = 0.018f - distance * 0.004f;
-                Color color = new Color(accent.r, accent.g, accent.b, alpha);
-                float offset = (index - 2f) * 12f;
-                Rect band = vertical
-                    ? new Rect(30f, center + offset, logicalWidth - 60f, 18f)
-                    : new Rect(center + offset, 148f, 18f, logicalHeight - 302f);
-                DrawRect(band, color);
-            }
         }
 
         private void DrawCompletionPanel(float logicalWidth, float logicalHeight)
@@ -184,14 +154,6 @@ namespace Rippies.Reveal
             }
 
             GUI.enabled = true;
-        }
-
-        private static void DrawRect(Rect rect, Color color)
-        {
-            Color previousColor = GUI.color;
-            GUI.color = color;
-            GUI.DrawTexture(rect, Texture2D.whiteTexture);
-            GUI.color = previousColor;
         }
 
         private void DrawRoundedRect(Rect rect, Color color)

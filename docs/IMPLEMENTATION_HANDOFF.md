@@ -53,14 +53,16 @@ Implemented:
   wrapper release, and card extraction; the procedural pack remains the
   repository-safe fallback.
 - A second locally licensed silver-packet GLB is now the default experience.
-  Its packet blows apart, its four authored card nodes fan open, and a fifth
-  receipt card joins them before the shared 3/2 grid.
+  It rests at the source clip's genuinely sealed frame, advances only with the
+  user's tear, blows apart around a centered hero card, and then hands all five
+  receipt cards to the shared centered fan and 3/2 grid.
 - **Profile → Pack animation** persists a development-only choice between
   **Silver burst** (`silver_packet`) and **Loot pack**
   (`animated_loot_pack`).
 - Selected `packTypeId`, palette, and generated card payload pass through `NativeRevealBridge`.
 - Experience-specific constrained input: Silver starts on the top seam and
-  pulls vertically down; Loot pack retains its left-to-right tear guide.
+  pulls vertically down from either the seam plane or the visible packet;
+  Loot pack retains its left-to-right tear guide.
 - Before tearing, the sealed pack can be rotated directly in 3D. Direction
   locking keeps a downward Silver seam pull or rightward Loot seam pull mapped
   to tearing, while sideways drags over the visible pack rotate it with
@@ -100,9 +102,8 @@ Collection tab
   -> selected payload reaches NativeRevealBridge
   -> matching Unity pack crossfades full screen
   -> follow the selected experience's minimal sentence-case tear prompt
-     and subtle directional light sweep behind the pack
   -> optionally drag sideways to turn the sealed pack in 3D
-  -> Unity animates strip, pack, glow, and the primary assigned card
+  -> Unity plays the selected authored opening around the primary assigned card
   -> five assigned cards fan out and settle into a 3/2 grid
   -> revealComplete keeps Unity visible in inspect mode
   -> user taps any card, rotates it in 3D, and taps again to return it
@@ -176,22 +177,30 @@ unity/Rippies/Assets/Resources/Rippies/ThirdParty/Local/loot_packet_silver.glb
 `SilverPackDriver` maps the silver source clip into these phases:
 
 ```text
-0.00s–0.78s  closed packet / presentation
-0.78s–1.60s  committed packet blow-apart
-1.82s–2.78s  four-card authored fan
+0.00s         frozen sealed packet / presentation
+0.00s–0.78s   user-controlled vertical tear scrub
+0.78s–1.60s   committed packet blow-apart around the centered hero
+1.82s–2.78s   source card motion sampled before product takeover
 ```
 
 The silver driver attaches the same receipt-textured, beveled Rippies card
-visual to each animated source card node. At authored settle it preserves that
-fan, adds the fifth assigned card, and hands all five to
-`CardGroupPresentation` for the grid and centered 3D inspector.
-Its ready pose is scaled to a smaller presentation frame with clear space on
-all sides. The product overlay intentionally omits state pills and explicit
-start-to-finish rails; a low-opacity top-to-bottom light sweep provides the
-Silver pull cue, while the Loot experience uses a left-to-right sweep.
-The standard pack arrival is played at `1.35x` duration and the committed
-opening/fan/grid choreography at `1.45x` duration. This changes pacing only:
-the source GLB clip ranges and authored poses remain untouched.
+visual to each animated source card node. Once the burst exposes the primary
+card, that card is detached into a camera-facing pivot at the packet's screen
+center so the wrapper can break away around it without pulling the reveal out
+of frame. At authored settle the driver adds the other four assigned cards,
+stacks all five on the same centered hero anchor, and hands them to
+`CardGroupPresentation` for a symmetrical fan, the 3/2 grid, and centered 3D
+inspection.
+
+The Silver arrival takes `0.48s` without an ornamental spin. Its committed
+burst takes `1.35s`, the hero settles for `0.78s`, and the five-card fan/grid
+takes `1.15s`. The ready pose is the source frame-zero silhouette, scaled to a
+smaller presentation frame and turned to show the branded controller face.
+The clip never advances before the user pulls. Silver also suppresses the
+generic authored-pack fall, extra rotation, radial reveal halo, state pills,
+and explicit start-to-finish guide bands. The only product instruction is the
+minimal sentence-case vertical pull prompt; sideways motion over the packet
+remains available for 3D rotation through direction locking.
 
 At reveal preparation, `CardFaceTextureFactory` derives deterministic front
 and back artwork from the immutable `CardPayload` and selected `packTypeId`.

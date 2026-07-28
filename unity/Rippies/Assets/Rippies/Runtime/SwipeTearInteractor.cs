@@ -21,7 +21,7 @@ namespace Rippies.Reveal
         [SerializeField] private PackRipController controller;
         [SerializeField, Range(0f, 0.4f)] private float maximumStartProgress = 0.25f;
         [SerializeField, Range(0f, 0.1f)] private float allowedBacktrack = 0.025f;
-        [SerializeField, Range(0.2f, 0.6f)] private float verticalDragScreenFraction = 0.34f;
+        [SerializeField, Range(0.2f, 0.6f)] private float verticalDragScreenFraction = 0.46f;
         [SerializeField, Range(4f, 24f)] private float directionLockDistance = 10f;
         [SerializeField] private float smoothing = 18f;
 
@@ -108,7 +108,13 @@ namespace Rippies.Reveal
             rotationCandidate = controller.IsScreenPointOverPack(screenPoint);
             if (controller.UsesVerticalTearGesture)
             {
-                tearCandidate = HitsTouchPlane(screenPoint);
+                // The authored Silver packet changes silhouette as its clip is
+                // scrubbed, while the scene touch plane remains deliberately
+                // conservative. Treat the visible packet itself as a valid
+                // vertical-tear start so the top seam cannot become a dead
+                // zone. Direction locking still reserves sideways motion for
+                // free rotation.
+                tearCandidate = HitsTouchPlane(screenPoint) || rotationCandidate;
                 if (!tearCandidate && !rotationCandidate)
                 {
                     pointerActive = false;
