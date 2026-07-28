@@ -59,7 +59,10 @@ Implemented:
   **Silver burst** (`silver_packet`) and **Loot pack**
   (`animated_loot_pack`).
 - Selected `packTypeId`, palette, and generated card payload pass through `NativeRevealBridge`.
-- Left-to-right constrained tear interaction.
+- Experience-specific constrained input: Silver starts on the top seam and
+  pulls vertically down; Loot pack retains its left-to-right tear guide.
+- Gesture release applies the furthest sampled progress immediately, so a
+  quick valid pull cannot stall below the cinematic commit threshold.
 - Procedurally inflated foil geometry with crimping, wrinkles, and jagged seam.
 - Top strip fully detaches and exits the frame.
 - Pack falls below frame and is disabled.
@@ -92,7 +95,7 @@ Collection tab
   -> Unity warms behind the native pack surface
   -> selected payload reaches NativeRevealBridge
   -> matching Unity pack crossfades full screen
-  -> swipe the seal
+  -> follow the selected experience's vertical or horizontal tear guide
   -> Unity animates strip, pack, glow, and the primary assigned card
   -> five assigned cards fan out and settle into a 3/2 grid
   -> revealComplete keeps Unity visible in inspect mode
@@ -176,6 +179,8 @@ The silver driver attaches the same receipt-textured, beveled Rippies card
 visual to each animated source card node. At authored settle it preserves that
 fan, adds the fifth assigned card, and hands all five to
 `CardGroupPresentation` for the grid and centered 3D inspector.
+Its ready pose is scaled to a smaller presentation frame with clear space on
+all sides for the vertical pull guide.
 
 At reveal preparation, `CardFaceTextureFactory` derives deterministic front
 and back artwork from the immutable `CardPayload` and selected `packTypeId`.
@@ -482,7 +487,7 @@ Before merging Unity reveal work:
 4. Select a pack with mouse and touch input.
 5. Confirm it animates to the hero position.
 6. Confirm the payload `packTypeId` and palette match the selection.
-7. Tear left to right.
+7. Pull Silver vertically from its top seam; tear Loot pack left to right.
 8. Confirm the strip and pack leave the frame.
 9. Confirm glow does not intersect the angled card.
 10. Confirm the state reaches `Complete`.

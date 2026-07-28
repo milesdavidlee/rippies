@@ -47,6 +47,7 @@ export function RevealExperience({
   const tearProgress = useRef(new Animated.Value(0)).current;
   const revealProgress = useRef(new Animated.Value(0)).current;
   const receiptRef = useRef<RevealReceipt | null>(null);
+  const usesVerticalGesture = revealExperience === 'silver_packet';
 
   useEffect(() => {
     receiptRef.current = receipt;
@@ -212,14 +213,28 @@ export function RevealExperience({
   const panResponder = useMemo(
     () =>
       PanResponder.create({
-        onMoveShouldSetPanResponder: (_, gesture) =>
-          stage === 'ready' && Math.abs(gesture.dx) > 4,
+        onMoveShouldSetPanResponder: (_, gesture) => {
+          const primary = usesVerticalGesture ? gesture.dy : gesture.dx;
+          const secondary = usesVerticalGesture ? gesture.dx : gesture.dy;
+          return (
+            stage === 'ready' &&
+            primary > 4 &&
+            Math.abs(primary) > Math.abs(secondary)
+          );
+        },
         onPanResponderMove: (_, gesture) => {
-          const progress = Math.max(0, Math.min(1, gesture.dx / 240));
+          const distance = usesVerticalGesture ? gesture.dy : gesture.dx;
+          const requiredDistance = usesVerticalGesture ? 260 : 240;
+          const progress = Math.max(
+            0,
+            Math.min(1, distance / requiredDistance),
+          );
           tearProgress.setValue(progress);
         },
         onPanResponderRelease: (_, gesture) => {
-          if (gesture.dx / 240 >= 0.76) {
+          const distance = usesVerticalGesture ? gesture.dy : gesture.dx;
+          const requiredDistance = usesVerticalGesture ? 260 : 240;
+          if (distance / requiredDistance >= 0.76) {
             commitFakeReveal();
           } else {
             Animated.spring(tearProgress, {
@@ -233,7 +248,7 @@ export function RevealExperience({
       }),
     // commitFakeReveal intentionally reads the current receipt and stage.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [stage, receipt],
+    [stage, receipt, usesVerticalGesture],
   );
 
   if (!pack) {
@@ -444,7 +459,11 @@ export function RevealExperience({
             ) : null}
             {ready ? (
               <Pressable
-                accessibilityHint="Swipe right for the full gesture or double tap to reveal"
+                accessibilityHint={
+                  usesVerticalGesture
+                    ? 'Swipe down from the top seam or double tap to reveal'
+                    : 'Swipe right for the full gesture or double tap to reveal'
+                }
                 accessibilityLabel="Rip pack"
                 accessibilityRole="button"
                 onPress={
@@ -457,33 +476,63 @@ export function RevealExperience({
                     : commitFakeReveal
                 }
                 {...(nativeMode ? {} : panResponder.panHandlers)}>
-                <Text style={styles.promptTitle}>Swipe to rip</Text>
-                <Text style={styles.promptDetail}>
-                  Drag across the seal from left to right.
+                <Text style={styles.promptTitle}>
+                  {usesVerticalGesture ? 'Drag down to burst' : 'Swipe to rip'}
                 </Text>
-                <View style={styles.swipeTrack}>
-                  <View style={styles.swipeRail} />
-                  <Animated.View
-                    style={[
-                      styles.swipeFill,
-                      {
-                        backgroundColor: pack.theme.accent,
-                        width: tearProgress.interpolate({
-                          inputRange: [0, 1],
-                          outputRange: ['12%', '100%'],
-                        }),
-                      },
-                    ]}
-                  />
-                  <View
-                    style={[
-                      styles.swipeStartDot,
-                      {backgroundColor: pack.theme.accent},
-                    ]}
-                  />
-                  <Text style={styles.swipeStartLabel}>START</Text>
-                  <Text style={styles.swipeArrow}>→</Text>
-                </View>
+                <Text style={styles.promptDetail}>
+                  {usesVerticalGesture
+                    ? 'Start at the top seam and pull straight down.'
+                    : 'Drag across the seal from left to right.'}
+                </Text>
+                {usesVerticalGesture ? (
+                  <View style={styles.pullTrack}>
+                    <View style={styles.pullRail} />
+                    <Animated.View
+                      style={[
+                        styles.pullFill,
+                        {
+                          backgroundColor: pack.theme.accent,
+                          height: tearProgress.interpolate({
+                            inputRange: [0, 1],
+                            outputRange: ['10%', '100%'],
+                          }),
+                        },
+                      ]}
+                    />
+                    <View
+                      style={[
+                        styles.pullStartDot,
+                        {backgroundColor: pack.theme.accent},
+                      ]}
+                    />
+                    <Text style={styles.pullStartLabel}>START</Text>
+                    <Text style={styles.pullArrow}>↓</Text>
+                  </View>
+                ) : (
+                  <View style={styles.swipeTrack}>
+                    <View style={styles.swipeRail} />
+                    <Animated.View
+                      style={[
+                        styles.swipeFill,
+                        {
+                          backgroundColor: pack.theme.accent,
+                          width: tearProgress.interpolate({
+                            inputRange: [0, 1],
+                            outputRange: ['12%', '100%'],
+                          }),
+                        },
+                      ]}
+                    />
+                    <View
+                      style={[
+                        styles.swipeStartDot,
+                        {backgroundColor: pack.theme.accent},
+                      ]}
+                    />
+                    <Text style={styles.swipeStartLabel}>START</Text>
+                    <Text style={styles.swipeArrow}>→</Text>
+                  </View>
+                )}
               </Pressable>
             ) : null}
             {stage === 'revealing' ? (
@@ -776,6 +825,52 @@ const styles = StyleSheet.create({
     position: 'absolute',
     right: 0,
     top: -3,
+  },
+  pullTrack: {
+    alignSelf: 'center',
+    height: 92,
+    marginTop: 16,
+    position: 'relative',
+    width: 70,
+  },
+  pullRail: {
+    backgroundColor: 'rgba(255,255,255,0.14)',
+    bottom: 8,
+    left: 34,
+    position: 'absolute',
+    top: 8,
+    width: 2,
+  },
+  pullFill: {
+    left: 34,
+    opacity: 0.9,
+    position: 'absolute',
+    top: 8,
+    width: 2,
+  },
+  pullStartDot: {
+    borderRadius: 6,
+    height: 10,
+    left: 30,
+    position: 'absolute',
+    top: 4,
+    width: 10,
+  },
+  pullStartLabel: {
+    color: tokens.color.textMuted,
+    fontSize: 8,
+    fontWeight: '900',
+    left: -10,
+    letterSpacing: 1,
+    position: 'absolute',
+    top: 0,
+  },
+  pullArrow: {
+    bottom: -8,
+    color: tokens.color.text,
+    fontSize: 20,
+    left: 27,
+    position: 'absolute',
   },
   doneButton: {
     alignSelf: 'center',

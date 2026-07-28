@@ -53,6 +53,8 @@ namespace Rippies.Reveal
                 : authoredPack != null && authoredPack.IsAvailable;
         public bool UsesAuthoredCardFan =>
             usingSilverPack && silverPack != null && silverPack.IsAvailable;
+        public bool UsesVerticalTearGesture =>
+            usingSilverPack && silverPack != null && silverPack.IsAvailable;
         public bool AcceptsTearInput =>
             State == RipState.Ready ||
             State == RipState.Grabbing ||

@@ -58,9 +58,10 @@ bundle exec pod install --project-directory=ios
 3. In **Profile → Pack animation**, choose **Silver burst** or **Loot pack**.
    Silver burst is the default and the choice persists across launches.
 4. Open **Collection** and select an unopened pack.
-5. Swipe the Unity seal left-to-right. In `LOCAL REVEAL` fallback mode, swipe or
-   tap the reveal track. VoiceOver users can activate **Rip pack** to invoke
-   Unity's accessible skip-to-reveal path.
+5. For **Silver burst**, start at the top seam and drag straight down. For
+   **Loot pack**, swipe its seal left-to-right. The local React Native fallback
+   mirrors the selected direction. VoiceOver users can activate **Rip pack** to
+   invoke Unity's accessible skip-to-reveal path.
 6. Verify the assigned cards follow the selected authored animation into the
    five-card group, then watch the group fan into a 3/2 grid.
 7. Tap each card to lift it forward, drag horizontally to rotate through the

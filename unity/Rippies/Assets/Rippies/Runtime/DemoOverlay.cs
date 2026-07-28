@@ -47,7 +47,9 @@ namespace Rippies.Reveal
             GUI.Label(new Rect(panel.x + 20f, panel.y + 12f, panel.width - 40f, 32f), "RIPPIES", titleStyle);
             string instruction = controller.State == RipState.Complete
                 ? "Reveal complete — press RESET to try again"
-                : "Click and drag the pack seam from left to right";
+                : controller.UsesVerticalTearGesture
+                    ? "Click the top seam and drag straight down"
+                    : "Click and drag the pack seam from left to right";
             GUI.Label(new Rect(panel.x + 20f, panel.y + 46f, panel.width - 40f, 28f), instruction, labelStyle);
 
             Rect track = new Rect(panel.x + 20f, panel.y + 78f, panel.width - 40f, 12f);
@@ -114,6 +116,12 @@ namespace Rippies.Reveal
 
         private void DrawTearPanel(float logicalWidth, float logicalHeight)
         {
+            if (controller.UsesVerticalTearGesture)
+            {
+                DrawVerticalTearPanel(logicalWidth, logicalHeight);
+                return;
+            }
+
             float contentWidth = Mathf.Min(logicalWidth - 64f, 350f);
             float contentX = (logicalWidth - contentWidth) * 0.5f;
             float contentY = logicalHeight - 126f;
@@ -146,6 +154,48 @@ namespace Rippies.Reveal
             GUI.Label(
                 new Rect(track.xMax - 28f, track.y - 16f, 28f, 28f),
                 "→",
+                productTitleStyle);
+        }
+
+        private void DrawVerticalTearPanel(
+            float logicalWidth,
+            float logicalHeight)
+        {
+            float contentWidth = Mathf.Min(logicalWidth - 64f, 350f);
+            float contentX = (logicalWidth - contentWidth) * 0.5f;
+            float contentY = logicalHeight - 110f;
+
+            GUI.Label(
+                new Rect(contentX, contentY, contentWidth, 18f),
+                "DRAG DOWN TO BURST",
+                productStatusStyle);
+            GUI.Label(
+                new Rect(contentX, contentY + 22f, contentWidth, 22f),
+                "Start at the top seam and pull straight down.",
+                productCenteredDetailStyle);
+
+            float trackHeight = Mathf.Min(286f, logicalHeight * 0.34f);
+            float trackX = logicalWidth - 34f;
+            float trackY = Mathf.Max(158f, logicalHeight * 0.25f);
+            Rect track = new Rect(trackX, trackY, 2f, trackHeight);
+            DrawRect(track, new Color(1f, 1f, 1f, 0.12f));
+            DrawRect(
+                new Rect(
+                    track.x,
+                    track.y,
+                    track.width,
+                    track.height * controller.TearProgress),
+                controller.AccentColor);
+            DrawRect(
+                new Rect(track.x - 3f, track.y - 3f, 8f, 8f),
+                controller.AccentColor);
+            GUI.Label(
+                new Rect(track.x - 50f, track.y - 8f, 44f, 18f),
+                "START",
+                productEyebrowStyle);
+            GUI.Label(
+                new Rect(track.x - 13f, track.yMax - 4f, 28f, 30f),
+                "↓",
                 productTitleStyle);
         }
 

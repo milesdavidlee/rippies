@@ -20,7 +20,7 @@ namespace Rippies.Reveal
         private const float PacketGone = 1.6f;
         private const float CardFanStart = 1.8166667f;
         private const float CardFanEnd = 2.7833333f;
-        private const float TargetPackHeight = 4.72f;
+        private const float TargetPackHeight = 3.58f;
 
         private static readonly int BaseColorFactorId =
             Shader.PropertyToID("baseColorFactor");

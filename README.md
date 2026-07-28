@@ -11,7 +11,8 @@ iOS React Native product pass:
 - A six-pack collection grid with mouse and touch selection.
 - A selected-pack transition into the reveal position.
 - A JSON handoff through `NativeRevealBridge`.
-- Procedural foil-pack geometry and left-to-right tearing.
+- Experience-specific tearing: a top-to-bottom Silver burst and the original
+  left-to-right foil seam.
 - Two locally licensed Unity reveal experiences with a persistent Profile
   selector; the silver packet burst is the development default.
 - A detached top strip, falling pack, five-card fan/grid reveal, rarity glow,
@@ -47,7 +48,8 @@ iOS React Native product pass:
 4. Open `Assets/Rippies/Scenes/PackReveal.unity`.
 5. Enter Play Mode.
 
-The demo starts in the product-style pack grid. Select a pack, let it move into the hero position, then tear from left to right.
+The demo starts in the product-style pack grid. Select a pack, let it move into
+the hero position, then follow the on-screen tear direction.
 
 ## Run the mobile shell
 
