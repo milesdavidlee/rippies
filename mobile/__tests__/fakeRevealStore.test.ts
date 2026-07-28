@@ -2,10 +2,13 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import {fakeInventory} from '../src/data/fakeInventory';
 import {
+  defaultRevealExperience,
   loadOpenedPackIds,
+  loadRevealExperience,
   markPackOpened,
   prepareFakeReveal,
   resetFakeCollection,
+  saveRevealExperience,
   updatePresentationState,
 } from '../src/reveal/fakeRevealStore';
 
@@ -32,4 +35,11 @@ test('tracks opened packs idempotently and resets the demo', async () => {
 
   await resetFakeCollection();
   expect(await loadOpenedPackIds()).toEqual([]);
+});
+
+test('defaults to the silver reveal and persists the development toggle', async () => {
+  expect(await loadRevealExperience()).toBe(defaultRevealExperience);
+
+  await saveRevealExperience('animated_loot_pack');
+  expect(await loadRevealExperience()).toBe('animated_loot_pack');
 });

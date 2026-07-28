@@ -46,10 +46,29 @@ namespace Rippies.Reveal
         private Texture originalCardAtlas;
         private Texture2D generatedCardAtlas;
         private bool initialized;
+        private bool experienceActive = true;
 
         public bool IsAvailable { get; private set; }
         public Transform PresentationCard => presentationCard;
         public Transform AnimatedCard => demoCard;
+
+        public void SetExperienceActive(bool active)
+        {
+            experienceActive = active;
+            if (contentRoot != null)
+            {
+                contentRoot.gameObject.SetActive(active);
+            }
+
+            // ResetReveal runs before the next experience is selected. When
+            // this driver was previously inactive, ResetModel therefore also
+            // disabled the instantiated GLB. Reactivating only its parent left
+            // the classic experience with an empty stage after a toggle.
+            if (instance != null)
+            {
+                instance.SetActive(active);
+            }
+        }
 
         public bool Initialize(Transform packRoot)
         {
@@ -134,7 +153,7 @@ namespace Rippies.Reveal
 
             ClearPresentationCopies();
             RestoreAnimatedCardHierarchy();
-            instance.SetActive(true);
+            instance.SetActive(experienceActive);
             SampleAt(PresentationStart);
         }
 
@@ -215,6 +234,34 @@ namespace Rippies.Reveal
                 sourcePresentation.parent,
                 true);
             copy.name = "AuthoredCardPresentation_" + card.id;
+            presentationCopies.Add(copy);
+
+            Texture2D atlas = BuildCardAtlas(card, packTypeId);
+            if (atlas != null)
+            {
+                companionCardAtlases.Add(atlas);
+                ApplyCardAtlas(copy.transform, atlas);
+            }
+
+            return copy.transform;
+        }
+
+        public Transform CreateDetachedCardVisual(
+            Transform parent,
+            CardPayload card,
+            string packTypeId)
+        {
+            if (!IsAvailable ||
+                demoCard == null ||
+                parent == null ||
+                card == null)
+            {
+                return null;
+            }
+
+            GameObject copy = Instantiate(demoCard.gameObject, parent, false);
+            copy.name = "SilverAuthoredCard_" + card.id;
+            copy.SetActive(true);
             presentationCopies.Add(copy);
 
             Texture2D atlas = BuildCardAtlas(card, packTypeId);

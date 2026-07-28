@@ -1,10 +1,13 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import type {InventoryPack} from '../data/fakeInventory';
-import type {RevealReceipt} from './contracts';
+import type {RevealExperienceId, RevealReceipt} from './contracts';
 
 const receiptKey = (revealId: string) => `rippies:receipt:${revealId}`;
 const openedPacksKey = 'rippies:opened-pack-ids';
+const revealExperienceKey = 'rippies:reveal-experience';
+
+export const defaultRevealExperience: RevealExperienceId = 'silver_packet';
 
 export async function prepareFakeReveal(
   pack: InventoryPack,
@@ -40,6 +43,19 @@ export async function updatePresentationState(
 export async function loadOpenedPackIds(): Promise<string[]> {
   const stored = await AsyncStorage.getItem(openedPacksKey);
   return stored ? (JSON.parse(stored) as string[]) : [];
+}
+
+export async function loadRevealExperience(): Promise<RevealExperienceId> {
+  const stored = await AsyncStorage.getItem(revealExperienceKey);
+  return stored === 'animated_loot_pack' || stored === 'silver_packet'
+    ? stored
+    : defaultRevealExperience;
+}
+
+export async function saveRevealExperience(
+  experience: RevealExperienceId,
+): Promise<void> {
+  await AsyncStorage.setItem(revealExperienceKey, experience);
 }
 
 export async function markPackOpened(inventoryId: string): Promise<string[]> {

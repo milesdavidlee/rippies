@@ -14,6 +14,8 @@ export type CardPayload = {
   backImageUrl: string;
 };
 
+export type RevealExperienceId = 'silver_packet' | 'animated_loot_pack';
+
 export type RevealPayload = {
   orderId: string;
   revealId: string;
@@ -21,6 +23,7 @@ export type RevealPayload = {
   assetVersion: string;
   presentationMode?: 'reveal' | 'inspection';
   inspectionCardId?: string;
+  revealExperienceId?: RevealExperienceId;
   cards: CardPayload[];
   /** Primary hit retained for backward-compatible receipt recovery. */
   card: CardPayload;

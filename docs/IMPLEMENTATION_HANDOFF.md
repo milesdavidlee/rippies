@@ -52,6 +52,12 @@ Implemented:
 - Optional licensed Fab GLB drives the centered arrival, swipe-scrubbed tear,
   wrapper release, and card extraction; the procedural pack remains the
   repository-safe fallback.
+- A second locally licensed silver-packet GLB is now the default experience.
+  Its packet blows apart, its four authored card nodes fan open, and a fifth
+  receipt card joins them before the shared 3/2 grid.
+- **Profile → Pack animation** persists a development-only choice between
+  **Silver burst** (`silver_packet`) and **Loot pack**
+  (`animated_loot_pack`).
 - Selected `packTypeId`, palette, and generated card payload pass through `NativeRevealBridge`.
 - Left-to-right constrained tear interaction.
 - Procedurally inflated foil geometry with crimping, wrinkles, and jagged seam.
@@ -107,6 +113,7 @@ Assets/Rippies/Runtime/PackRipController.cs
 Assets/Rippies/Runtime/SwipeTearInteractor.cs
 Assets/Rippies/Runtime/FoilPackDeformer.cs
 Assets/Rippies/Runtime/AuthoredPackDriver.cs
+Assets/Rippies/Runtime/SilverPackDriver.cs
 Assets/Rippies/Runtime/CardFaceTextureFactory.cs
 Assets/Rippies/Runtime/CardGroupPresentation.cs
 Assets/Rippies/Runtime/RevealDirector.cs
@@ -135,16 +142,17 @@ Mobile collection grid
 
 The animation never decides which card the user owns. The backend must assign and persist the result before Unity becomes interactive.
 
-## Licensed authored reveal asset
+## Licensed authored reveal assets
 
-The enhanced reveal uses the purchased `Animated Card Loot Pack` GLB through
-Unity glTFast. Because this repository is public, the marketplace binary is
-kept local and ignored by Git.
+The enhanced reveal uses the purchased `Animated Card Loot Pack` and silver
+packet GLBs through Unity glTFast. Because this repository is public, both
+marketplace binaries are kept local and ignored by Git.
 
-Place it at:
+Place them at:
 
 ```text
 unity/Rippies/Assets/Resources/Rippies/ThirdParty/Local/animated_card_loot_pack.glb
+unity/Rippies/Assets/Resources/Rippies/ThirdParty/Local/loot_packet_silver.glb
 ```
 
 `AuthoredPackDriver` maps the source clip into product-controlled phases:
@@ -155,6 +163,19 @@ unity/Rippies/Assets/Resources/Rippies/ThirdParty/Local/animated_card_loot_pack.
 6.84s–7.48s  committed wrapper tear
 7.48s–8.84s  card extraction and settle
 ```
+
+`SilverPackDriver` maps the silver source clip into these phases:
+
+```text
+0.00s–0.78s  closed packet / presentation
+0.78s–1.60s  committed packet blow-apart
+1.82s–2.78s  four-card authored fan
+```
+
+The silver driver attaches the same receipt-textured, beveled Rippies card
+visual to each animated source card node. At authored settle it preserves that
+fan, adds the fifth assigned card, and hands all five to
+`CardGroupPresentation` for the grid and centered 3D inspector.
 
 At reveal preparation, `CardFaceTextureFactory` derives deterministic front
 and back artwork from the immutable `CardPayload` and selected `packTypeId`.
@@ -237,6 +258,7 @@ On Android, Unity calls `onUnityRevealEvent(payload)` on the current Unity host 
   "revealId": "rev_456",
   "packTypeId": "rippies_prism",
   "assetVersion": "prototype-2",
+  "revealExperienceId": "silver_packet",
   "presentationMode": "inspection",
   "inspectionCardId": "card_789",
   "cards": [
@@ -335,11 +357,13 @@ On Android, Unity calls `onUnityRevealEvent(payload)` on the current Unity host 
 }
 ```
 
-`presentationMode` and `inspectionCardId` are optional presentation-only
-fields. The native shell adds them when reopening an owned card; they are not
-written back into the immutable reveal receipt. Normal pack reveals omit both
-fields. In inspection mode Unity presents `inspectionCardId` first and skips
-the pack animation.
+`revealExperienceId`, `presentationMode`, and `inspectionCardId` are optional
+presentation-only fields and are not written back into the immutable reveal
+receipt. The shell supplies `silver_packet` or `animated_loot_pack` from the
+persistent Profile preference; Unity defaults to `silver_packet`.
+`presentationMode` and `inspectionCardId` are added when reopening an owned
+card. In inspection mode Unity presents `inspectionCardId` first and skips the
+pack animation.
 
 `cards` is the immutable five-card result. `card` mirrors `cards[0]` as a
 temporary backward-compatible primary-hit alias for older stored receipts.

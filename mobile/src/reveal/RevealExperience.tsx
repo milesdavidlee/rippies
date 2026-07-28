@@ -16,7 +16,7 @@ import {PackArtwork} from '../components/PackArtwork';
 import type {InventoryPack} from '../data/fakeInventory';
 import {tokens} from '../design/tokens';
 import {UnityRevealBridge} from '../bridge/UnityRevealBridge';
-import type {RevealReceipt} from './contracts';
+import type {RevealExperienceId, RevealReceipt} from './contracts';
 import {
   prepareFakeReveal,
   updatePresentationState,
@@ -27,6 +27,7 @@ type Stage = 'preparing' | 'ready' | 'revealing' | 'complete' | 'error';
 type Props = {
   pack: InventoryPack | null;
   inspectionCardId?: string | null;
+  revealExperience: RevealExperienceId;
   onCancel: () => void;
   onComplete: (pack: InventoryPack) => void;
 };
@@ -34,6 +35,7 @@ type Props = {
 export function RevealExperience({
   pack,
   inspectionCardId,
+  revealExperience,
   onCancel,
   onComplete,
 }: Props) {
@@ -125,13 +127,16 @@ export function RevealExperience({
             }
           });
           await UnityRevealBridge.prepareReveal(
-            inspectionCardId
-              ? {
-                  ...nextReceipt.payload,
+            {
+              ...nextReceipt.payload,
+              revealExperienceId: revealExperience,
+              ...(inspectionCardId
+                ? {
                   inspectionCardId,
                   presentationMode: 'inspection',
-                }
-              : nextReceipt.payload,
+                  }
+                : {}),
+            },
           );
         } else {
           setTimeout(() => {
@@ -171,6 +176,7 @@ export function RevealExperience({
     onCancel,
     onComplete,
     pack,
+    revealExperience,
     revealProgress,
     tearProgress,
   ]);

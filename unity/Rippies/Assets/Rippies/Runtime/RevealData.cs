@@ -44,6 +44,7 @@ namespace Rippies.Reveal
         public string assetVersion = "1";
         public string presentationMode = "reveal";
         public string inspectionCardId = "";
+        public string revealExperienceId = "silver_packet";
         public CardPayload[] cards = Array.Empty<CardPayload>();
         public CardPayload card = new CardPayload();
         public string receiptSignature = "local-demo";
@@ -63,6 +64,11 @@ namespace Rippies.Reveal
                 presentationMode,
                 "inspection",
                 StringComparison.OrdinalIgnoreCase);
+
+        public string RevealExperienceId =>
+            string.IsNullOrWhiteSpace(revealExperienceId)
+                ? "silver_packet"
+                : revealExperienceId;
 
         public CardPayload InspectionCard
         {

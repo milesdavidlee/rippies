@@ -6,11 +6,14 @@ import {TabBar, type AppTab} from '../components/TabBar';
 import {fakeInventory, type InventoryPack} from '../data/fakeInventory';
 import {tokens} from '../design/tokens';
 import {RevealExperience} from '../reveal/RevealExperience';
-import type {CardPayload} from '../reveal/contracts';
+import type {CardPayload, RevealExperienceId} from '../reveal/contracts';
 import {
+  defaultRevealExperience,
   loadOpenedPackIds,
+  loadRevealExperience,
   markPackOpened,
   resetFakeCollection,
+  saveRevealExperience,
 } from '../reveal/fakeRevealStore';
 import {CollectionScreen} from '../screens/CollectionScreen';
 import {DiscoverScreen} from '../screens/DiscoverScreen';
@@ -24,9 +27,12 @@ export function AppShell() {
   const [selectedPack, setSelectedPack] = useState<InventoryPack | null>(null);
   const [inspectionCardId, setInspectionCardId] = useState<string | null>(null);
   const [openedPackIds, setOpenedPackIds] = useState<string[]>([]);
+  const [revealExperience, setRevealExperience] =
+    useState<RevealExperienceId>(defaultRevealExperience);
 
   useEffect(() => {
     loadOpenedPackIds().then(setOpenedPackIds);
+    loadRevealExperience().then(setRevealExperience);
   }, []);
 
   const completeReveal = useCallback(async (pack: InventoryPack) => {
@@ -52,6 +58,14 @@ export function AppShell() {
     setSelectedPack(null);
     setInspectionCardId(null);
   }, []);
+
+  const changeRevealExperience = useCallback(
+    async (experience: RevealExperienceId) => {
+      setRevealExperience(experience);
+      await saveRevealExperience(experience);
+    },
+    [],
+  );
 
   const reset = useCallback(async () => {
     await resetFakeCollection();
@@ -84,8 +98,10 @@ export function AppShell() {
           ) : null}
           {activeTab === 'profile' ? (
             <ProfileScreen
+              onRevealExperienceChange={changeRevealExperience}
               onReset={reset}
               openedCount={openedPackIds.length}
+              revealExperience={revealExperience}
             />
           ) : null}
         </View>
@@ -97,6 +113,7 @@ export function AppShell() {
         onCancel={dismissReveal}
         onComplete={completeReveal}
         pack={selectedPack}
+        revealExperience={revealExperience}
       />
     </View>
   );

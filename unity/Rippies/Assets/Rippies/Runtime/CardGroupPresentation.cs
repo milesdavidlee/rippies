@@ -16,6 +16,9 @@ namespace Rippies.Reveal
         private readonly List<Vector3> gridPositions = new List<Vector3>();
         private readonly List<Quaternion> gridRotations = new List<Quaternion>();
         private readonly List<Vector3> gridScales = new List<Vector3>();
+        private readonly List<Vector3> revealStartPositions = new List<Vector3>();
+        private readonly List<Quaternion> revealStartRotations = new List<Quaternion>();
+        private readonly List<Vector3> revealStartScales = new List<Vector3>();
         private readonly List<Vector3> closePositions = new List<Vector3>();
         private readonly List<Quaternion> closeRotations = new List<Quaternion>();
         private readonly List<Vector3> closeScales = new List<Vector3>();
@@ -38,6 +41,7 @@ namespace Rippies.Reveal
         private float desiredPitch;
         private float currentYaw;
         private float currentPitch;
+        private bool preserveRevealStartLayout;
 
         public IReadOnlyList<Transform> Cards => cards;
         public Transform PrimaryCard => cards.Count == 0 ? null : cards[0];
@@ -46,13 +50,18 @@ namespace Rippies.Reveal
         public void Configure(
             Camera camera,
             IReadOnlyList<Transform> targets,
-            bool alignPrimaryToCamera = false)
+            bool alignPrimaryToCamera = false,
+            bool preserveCurrentLayout = false)
         {
             sceneCamera = camera;
+            preserveRevealStartLayout = preserveCurrentLayout;
             cards.Clear();
             gridPositions.Clear();
             gridRotations.Clear();
             gridScales.Clear();
+            revealStartPositions.Clear();
+            revealStartRotations.Clear();
+            revealStartScales.Clear();
             selectedIndex = -1;
             interactionEnabled = false;
 
@@ -76,6 +85,17 @@ namespace Rippies.Reveal
 
             Transform primary = cards[0];
             stackPosition = primary.position;
+            if (preserveRevealStartLayout && cards.Count > 1)
+            {
+                stackPosition = Vector3.zero;
+                foreach (Transform target in cards)
+                {
+                    stackPosition += target.position;
+                }
+
+                stackPosition /= cards.Count;
+            }
+
             stackRotation = alignPrimaryToCamera && sceneCamera != null
                 ? Quaternion.LookRotation(
                     sceneCamera.transform.forward,
@@ -93,12 +113,19 @@ namespace Rippies.Reveal
             Vector3 right = sceneCamera == null ? Vector3.right : sceneCamera.transform.right;
             Vector3 up = sceneCamera == null ? Vector3.up : sceneCamera.transform.up;
             Vector3 forward = sceneCamera == null ? Vector3.forward : sceneCamera.transform.forward;
-            float scaleFactor = cards.Count <= 1 ? 1f : 0.31f;
+            float scaleFactor = cards.Count <= 1
+                ? 1f
+                : preserveRevealStartLayout
+                    ? 0.48f
+                    : 0.31f;
             float horizontalStep = cardWidth * 0.39f;
             float verticalStep = cardHeight * 0.32f;
 
             for (int index = 0; index < cards.Count; index++)
             {
+                revealStartPositions.Add(cards[index].position);
+                revealStartRotations.Add(cards[index].rotation);
+                revealStartScales.Add(cards[index].localScale);
                 bool singleCard = cards.Count == 1;
                 bool topRow = index < 3;
                 int rowIndex = topRow ? index : index - 3;
@@ -119,9 +146,14 @@ namespace Rippies.Reveal
                 gridRotations.Add(stackRotation);
                 gridScales.Add(Vector3.Scale(heroScale, Vector3.one * scaleFactor));
 
-                cards[index].position = stackPosition + forward * (index * 0.006f);
-                cards[index].rotation = stackRotation;
-                cards[index].localScale = heroScale;
+                if (!preserveRevealStartLayout)
+                {
+                    cards[index].position =
+                        stackPosition + forward * (index * 0.006f);
+                    cards[index].rotation = stackRotation;
+                    cards[index].localScale = heroScale;
+                }
+
                 cards[index].gameObject.SetActive(true);
             }
         }
@@ -137,6 +169,24 @@ namespace Rippies.Reveal
 
             for (int index = 0; index < cards.Count; index++)
             {
+                if (preserveRevealStartLayout)
+                {
+                    float transition = Mathf.SmoothStep(0f, 1f, value);
+                    cards[index].position = Vector3.Lerp(
+                        revealStartPositions[index],
+                        gridPositions[index],
+                        transition);
+                    cards[index].rotation = Quaternion.Slerp(
+                        revealStartRotations[index],
+                        gridRotations[index],
+                        transition);
+                    cards[index].localScale = Vector3.Lerp(
+                        revealStartScales[index],
+                        gridScales[index],
+                        transition);
+                    continue;
+                }
+
                 float centered = index - (cards.Count - 1f) * 0.5f;
                 Vector3 fanPosition = stackPosition +
                     right * centered * heroCardWidth * 0.17f * fan +

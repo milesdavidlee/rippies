@@ -27,6 +27,8 @@ namespace Rippies.Reveal
         private bool presentationIdle;
         private float idleStartedAt;
 
+        public Transform CardTemplate => card;
+
         private void Awake()
         {
             softOrbit ??= FindFirstObjectByType<SoftOrbitCamera>();
@@ -524,32 +526,48 @@ namespace Rippies.Reveal
                 return card;
             }
 
-            Transform authoredCard = owner.TakeOverAuthoredCard(
+            IReadOnlyList<Transform> authoredCards = owner.TakeOverAuthoredCards(
                 card == null ? transform : card.parent);
+            interactiveCards.Clear();
+            if (authoredCards != null)
+            {
+                foreach (Transform authoredCard in authoredCards)
+                {
+                    if (authoredCard != null)
+                    {
+                        interactiveCards.Add(authoredCard);
+                    }
+                }
+            }
+
             if (card != null)
             {
                 card.gameObject.SetActive(false);
             }
 
-            return authoredCard;
+            return interactiveCards.Count == 0 ? null : interactiveCards[0];
         }
 
         private void BuildCardGroup(PackRipController owner, Transform primary)
         {
             cardGroup?.DisposeCopies();
             cardGroup = null;
-            interactiveCards.Clear();
             if (primary == null)
             {
                 return;
             }
 
-            interactiveCards.Add(primary);
+            if (interactiveCards.Count == 0 || interactiveCards[0] != primary)
+            {
+                interactiveCards.Clear();
+                interactiveCards.Add(primary);
+            }
+
             CardPayload[] payloadCards = owner.PresentationCards;
             int cardCount = owner.IsInspectionMode
                 ? Mathf.Min(payloadCards.Length, 1)
                 : Mathf.Min(payloadCards.Length, 5);
-            for (int index = 1; index < cardCount; index++)
+            for (int index = interactiveCards.Count; index < cardCount; index++)
             {
                 CardPayload payloadCard = payloadCards[index];
                 Transform copy = owner.HasAuthoredPack
@@ -565,7 +583,8 @@ namespace Rippies.Reveal
             cardGroup.Configure(
                 Camera.main,
                 interactiveCards,
-                owner.IsInspectionMode);
+                owner.IsInspectionMode || owner.UsesAuthoredCardFan,
+                owner.UsesAuthoredCardFan);
         }
 
         private static Transform CreateGeneratedCardCopy(

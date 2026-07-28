@@ -24,6 +24,8 @@ reveal when a local `UnityFramework.framework` export is embedded.
 - Optional locally licensed authored pack animation with deterministic
   full-face front and pack-specific back artwork, live extraction camera
   tracking, and a five-card fan/grid/inspect handoff.
+- A persistent **Profile → Pack animation** development selector for the
+  default **Silver burst** and original **Loot pack** experiences.
 - Automatic local fallback when the Unity framework is not embedded.
 - Shared color, spacing, radius, motion, and pack tokens in
   `../shared/rippies-design-tokens.json`.
@@ -53,28 +55,30 @@ bundle exec pod install --project-directory=ios
 
 1. Run `npm start` in `mobile/`.
 2. In another terminal, run `npm run ios`.
-3. Open **Collection** and select an unopened pack.
-4. Swipe the Unity seal left-to-right. In `LOCAL REVEAL` fallback mode, swipe or
+3. In **Profile → Pack animation**, choose **Silver burst** or **Loot pack**.
+   Silver burst is the default and the choice persists across launches.
+4. Open **Collection** and select an unopened pack.
+5. Swipe the Unity seal left-to-right. In `LOCAL REVEAL` fallback mode, swipe or
    tap the reveal track. VoiceOver users can activate **Rip pack** to invoke
    Unity's accessible skip-to-reveal path.
-5. Verify the primary card coming out of the authored wrapper remains in the
+6. Verify the assigned cards follow the selected authored animation into the
    five-card group, then watch the group fan into a 3/2 grid.
-6. Tap each card to lift it forward, drag horizontally to rotate through the
+7. Tap each card to lift it forward, drag horizontally to rotate through the
    front, edge, and custom back, then tap it again to return it to the same slot.
-7. Select **View collection** on the Unity completion canvas and verify the
+8. Select **View collection** on the Unity completion canvas and verify the
    coordinated close returns to the populated **Cards** segment.
-8. In **Collection → Cards**, tap any stored card and verify it opens directly,
+9. In **Collection → Cards**, tap any stored card and verify it opens directly,
    front-facing and correctly framed, in Unity. Drag horizontally through its
    face, edge, and back, then select **Back to collection** and verify the same
    Cards grid returns without changing the receipt.
-9. Switch among Discover, Collection, and Profile and verify the bright Liquid
+10. Switch among Discover, Collection, and Profile and verify the bright Liquid
    Glass selection capsule follows the active tab.
-10. Reopen the same receipt before confirming, or restart the app, to verify the
+11. Reopen the same receipt before confirming, or restart the app, to verify the
    five assigned cards are restored.
-11. Without restarting the app, open a second and third pack and verify the
+12. Without restarting the app, open a second and third pack and verify the
    authored card group keeps the same size, centered pivots, and reachable
    collection action.
-12. Use **Profile → Reset fake collection** to replay from a clean state.
+13. Use **Profile → Reset fake collection** to replay from a clean state.
 
 To test the real Unity handoff, export the simulator player before running the
 app:
@@ -83,15 +87,16 @@ app:
 ios/scripts/export-unity-ios.sh simulator
 ```
 
-For the licensed authored reveal, place the purchased GLB at:
+For both licensed authored reveals, place the purchased GLBs at:
 
 ```text
 ../unity/Rippies/Assets/Resources/Rippies/ThirdParty/Local/animated_card_loot_pack.glb
+../unity/Rippies/Assets/Resources/Rippies/ThirdParty/Local/loot_packet_silver.glb
 ```
 
-That file is intentionally ignored and is never redistributed by this public
-repository. If it is missing, Unity uses the checked-in procedural pack and
-generated card.
+Those files are intentionally ignored and are never redistributed by this
+public repository. If an authored asset is missing, Unity falls back to the
+available authored or checked-in procedural reveal.
 
 The Xcode target then builds and embeds `UnityFramework` automatically. It
 displays `UNITY CONNECTED`, crossfades to the selected Unity pack after

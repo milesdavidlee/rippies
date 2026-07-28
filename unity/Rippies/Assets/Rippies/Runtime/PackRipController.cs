@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace Rippies.Reveal
@@ -18,6 +19,7 @@ namespace Rippies.Reveal
         [SerializeField] private RevealDirector revealDirector;
         [SerializeField] private SwipeTearInteractor interactor;
         [SerializeField] private AuthoredPackDriver authoredPack;
+        [SerializeField] private SilverPackDriver silverPack;
         [SerializeField] private float commitThreshold = 0.94f;
         [SerializeField] private bool reducedMotion;
 
@@ -30,6 +32,7 @@ namespace Rippies.Reveal
         private bool closing;
         private RevealPayload payload;
         private Color accentColor = ProductDesignLanguage.Cyan;
+        private bool usingSilverPack;
 
         public RipState State { get; private set; } = RipState.Loading;
         public float TearProgress { get; private set; }
@@ -44,7 +47,12 @@ namespace Rippies.Reveal
             payload == null ? null : payload.InspectionCard;
         public Color AccentColor => accentColor;
         public bool IsClosing => closing;
-        public bool HasAuthoredPack => authoredPack != null && authoredPack.IsAvailable;
+        public bool HasAuthoredPack =>
+            usingSilverPack
+                ? silverPack != null && silverPack.IsAvailable
+                : authoredPack != null && authoredPack.IsAvailable;
+        public bool UsesAuthoredCardFan =>
+            usingSilverPack && silverPack != null && silverPack.IsAvailable;
         public bool AcceptsTearInput =>
             State == RipState.Ready ||
             State == RipState.Grabbing ||
@@ -75,6 +83,13 @@ namespace Rippies.Reveal
             authoredPack ??= GetComponent<AuthoredPackDriver>();
             authoredPack ??= gameObject.AddComponent<AuthoredPackDriver>();
             authoredPack.Initialize(transform.Find("PackShellVisuals"));
+            silverPack ??= GetComponent<SilverPackDriver>();
+            silverPack ??= gameObject.AddComponent<SilverPackDriver>();
+            silverPack.Initialize(
+                transform.Find("PackShellVisuals"),
+                revealDirector == null ? null : revealDirector.CardTemplate,
+                authoredPack);
+            SelectRevealExperience("silver_packet");
             revealDirector?.SetAuthoredPackAvailable(HasAuthoredPack);
         }
 
@@ -90,11 +105,22 @@ namespace Rippies.Reveal
             // Unity stays resident between pack openings, so this ordering
             // prevents presentation-pivot transforms from leaking forward.
             ResetReveal();
+            SelectRevealExperience(payload.RevealExperienceId);
             CardPayload primaryCard = payload.IsInspectionMode
                 ? payload.InspectionCard
                 : payload.PrimaryCard;
             cardPresenter?.Apply(primaryCard);
-            authoredPack?.SetCard(primaryCard, payload.packTypeId);
+            if (usingSilverPack)
+            {
+                silverPack?.SetCards(
+                    payload.PresentationCards,
+                    payload.packTypeId);
+            }
+            else
+            {
+                authoredPack?.SetCard(primaryCard, payload.packTypeId);
+            }
+
             ApplyPackPalette(primaryCard);
             ApplyPackIdentity(payload.packTypeId);
             SetState(RipState.Presenting);
@@ -117,7 +143,14 @@ namespace Rippies.Reveal
             SetState(RipState.Tearing);
             TearProgress = Mathf.Max(TearProgress, Mathf.Clamp01(value));
             ApplyTearVisuals(TearProgress);
-            authoredPack?.SampleSwipe(TearProgress);
+            if (usingSilverPack)
+            {
+                silverPack?.SampleSwipe(TearProgress);
+            }
+            else
+            {
+                authoredPack?.SampleSwipe(TearProgress);
+            }
             TearProgressChanged?.Invoke(TearProgress);
 
             if (TearProgress >= commitThreshold)
@@ -131,7 +164,14 @@ namespace Rippies.Reveal
             TearProgress = Mathf.Max(TearProgress, Mathf.Clamp01(progress));
             ApplyTearVisuals(TearProgress);
             foilPack?.ApplyStripRelease(release);
-            authoredPack?.SampleCommittedTear(release);
+            if (usingSilverPack)
+            {
+                silverPack?.SampleCommittedTear(release);
+            }
+            else
+            {
+                authoredPack?.SampleCommittedTear(release);
+            }
             TearProgressChanged?.Invoke(TearProgress);
         }
 
@@ -175,6 +215,7 @@ namespace Rippies.Reveal
             SetPackLabelsVisible(true);
             revealDirector?.ResetSequence();
             authoredPack?.ResetModel();
+            silverPack?.ResetModel();
             interactor?.ResetInteraction();
             ApplyTearVisuals(0f);
             SetState(RipState.Loading);
@@ -196,23 +237,57 @@ namespace Rippies.Reveal
 
         public void SampleAuthoredPresentation(float progress)
         {
-            authoredPack?.SamplePresentation(progress);
+            if (usingSilverPack)
+            {
+                silverPack?.SamplePresentation(progress);
+            }
+            else
+            {
+                authoredPack?.SamplePresentation(progress);
+            }
         }
 
         public void SampleAuthoredOpening(float progress)
         {
-            authoredPack?.SampleOpening(progress);
+            if (usingSilverPack)
+            {
+                silverPack?.SampleOpening(progress);
+            }
+            else
+            {
+                authoredPack?.SampleOpening(progress);
+            }
         }
 
-        public Transform TakeOverAuthoredCard(Transform presentationParent)
+        public IReadOnlyList<Transform> TakeOverAuthoredCards(
+            Transform presentationParent)
         {
-            return authoredPack?.TakeOverCard(presentationParent);
+            if (usingSilverPack)
+            {
+                int cardCount = IsInspectionMode
+                    ? 1
+                    : Mathf.Min(PresentationCards.Length, 5);
+                return silverPack?.TakeOverCards(
+                    presentationParent,
+                    cardCount) ?? Array.Empty<Transform>();
+            }
+
+            Transform authoredCard = authoredPack?.TakeOverCard(
+                presentationParent);
+            return authoredCard == null
+                ? Array.Empty<Transform>()
+                : new[] {authoredCard};
         }
 
         public Transform CreateAuthoredCardCopy(
             Transform sourcePresentation,
             CardPayload cardPayload)
         {
+            if (usingSilverPack)
+            {
+                return null;
+            }
+
             return authoredPack?.CreatePresentationCardCopy(
                 sourcePresentation,
                 cardPayload,
@@ -220,7 +295,9 @@ namespace Rippies.Reveal
         }
 
         public Transform AuthoredAnimationCard =>
-            authoredPack == null ? null : authoredPack.AnimatedCard;
+            usingSilverPack
+                ? silverPack == null ? null : silverPack.AnimatedCard
+                : authoredPack == null ? null : authoredPack.AnimatedCard;
 
         public void NotifyCardVisible()
         {
@@ -280,7 +357,14 @@ namespace Rippies.Reveal
             ApplyPalette(packBody, bodyProperties, baseColor, accent);
             ApplyPalette(topStripRenderer, stripProperties, baseColor, accent);
             revealDirector?.SetPalette(accent);
-            authoredPack?.SetAccent(accent);
+            if (usingSilverPack)
+            {
+                silverPack?.SetAccent(accent);
+            }
+            else
+            {
+                authoredPack?.SetAccent(accent);
+            }
 
             Transform wordmark = transform.Find("PackWordmark");
             Transform subtitle = transform.Find("PackSubtitle");
@@ -314,6 +398,36 @@ namespace Rippies.Reveal
             }
 
             subtitleText.text = label.Replace('-', ' ').ToUpperInvariant() + " PACK";
+        }
+
+        private void SelectRevealExperience(string experienceId)
+        {
+            bool silverAvailable = silverPack != null && silverPack.IsAvailable;
+            bool classicAvailable = authoredPack != null && authoredPack.IsAvailable;
+            bool requestsClassic = string.Equals(
+                experienceId,
+                "animated_loot_pack",
+                StringComparison.OrdinalIgnoreCase);
+
+            usingSilverPack =
+                silverAvailable && (!requestsClassic || !classicAvailable);
+            authoredPack?.SetExperienceActive(
+                !usingSilverPack && classicAvailable);
+            silverPack?.SetExperienceActive(usingSilverPack);
+
+            bool authoredAvailable = HasAuthoredPack;
+            if (packBody != null)
+            {
+                packBody.enabled = !authoredAvailable;
+            }
+
+            if (topStripRenderer != null && topStripRenderer != packBody)
+            {
+                topStripRenderer.enabled = !authoredAvailable;
+            }
+
+            revealDirector?.SetAuthoredPackAvailable(authoredAvailable);
+            SetPackLabelsVisible(!authoredAvailable);
         }
 
         private static void ApplyPalette(

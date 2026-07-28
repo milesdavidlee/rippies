@@ -12,6 +12,8 @@ iOS React Native product pass:
 - A selected-pack transition into the reveal position.
 - A JSON handoff through `NativeRevealBridge`.
 - Procedural foil-pack geometry and left-to-right tearing.
+- Two locally licensed Unity reveal experiences with a persistent Profile
+  selector; the silver packet burst is the development default.
 - A detached top strip, falling pack, five-card fan/grid reveal, rarity glow,
   and per-card 3D inspection.
 - Immutable receipt-assigned card content and coordinated pack/card palettes.

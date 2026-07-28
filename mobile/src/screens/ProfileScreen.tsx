@@ -3,13 +3,29 @@ import {Pressable, ScrollView, StyleSheet, Text, View} from 'react-native';
 
 import {ScreenHeader} from '../components/ScreenHeader';
 import {tokens} from '../design/tokens';
+import type {RevealExperienceId} from '../reveal/contracts';
 
 type Props = {
   openedCount: number;
   onReset: () => void;
+  revealExperience: RevealExperienceId;
+  onRevealExperienceChange: (experience: RevealExperienceId) => void;
 };
 
-export function ProfileScreen({openedCount, onReset}: Props) {
+const revealExperiences: Array<{
+  id: RevealExperienceId;
+  label: string;
+}> = [
+  {id: 'silver_packet', label: 'Silver burst'},
+  {id: 'animated_loot_pack', label: 'Loot pack'},
+];
+
+export function ProfileScreen({
+  openedCount,
+  onReset,
+  revealExperience,
+  onRevealExperienceChange,
+}: Props) {
   return (
     <ScrollView contentContainerStyle={styles.content}>
       <ScreenHeader
@@ -45,6 +61,38 @@ export function ProfileScreen({openedCount, onReset}: Props) {
             </Text>
           </View>
           <Text style={styles.enabled}>ON</Text>
+        </View>
+        <View style={styles.hairline} />
+        <View style={styles.experienceSetting}>
+          <Text style={styles.settingTitle}>Pack animation</Text>
+          <Text style={styles.settingDetail}>
+            Choose the Unity reveal used for the next unopened pack.
+          </Text>
+          <View style={styles.experienceOptions}>
+            {revealExperiences.map(experience => {
+              const selected = experience.id === revealExperience;
+              return (
+                <Pressable
+                  accessibilityRole="radio"
+                  accessibilityState={{checked: selected}}
+                  key={experience.id}
+                  onPress={() => onRevealExperienceChange(experience.id)}
+                  style={({pressed}) => [
+                    styles.experienceOption,
+                    selected && styles.experienceOptionSelected,
+                    pressed && styles.pressed,
+                  ]}>
+                  <Text
+                    style={[
+                      styles.experienceLabel,
+                      selected && styles.experienceLabelSelected,
+                    ]}>
+                    {experience.label}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
         </View>
         <View style={styles.hairline} />
         <Pressable
@@ -114,6 +162,37 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     paddingVertical: 17,
+  },
+  experienceSetting: {
+    paddingVertical: 17,
+  },
+  experienceOptions: {
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+    borderColor: tokens.color.line,
+    borderRadius: tokens.radius.pill,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: 4,
+    marginTop: 14,
+    padding: 4,
+  },
+  experienceOption: {
+    alignItems: 'center',
+    borderRadius: tokens.radius.pill,
+    flex: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 11,
+  },
+  experienceOptionSelected: {
+    backgroundColor: '#F7F9FF',
+  },
+  experienceLabel: {
+    color: tokens.color.textMuted,
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  experienceLabelSelected: {
+    color: '#11141C',
   },
   settingTitle: {
     color: tokens.color.text,
