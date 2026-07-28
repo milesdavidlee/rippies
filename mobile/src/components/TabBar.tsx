@@ -44,7 +44,7 @@ export function TabBar({activeTab, onChange}: Props) {
 const styles = StyleSheet.create({
   container: {
     backgroundColor: 'transparent',
-    borderRadius: tokens.radius.lg,
+    borderRadius: tokens.radius.pill,
     bottom: 10,
     flexDirection: 'row',
     left: 14,
@@ -64,10 +64,11 @@ const styles = StyleSheet.create({
     position: 'absolute',
     right: 0,
     top: 0,
-    borderRadius: tokens.radius.lg,
+    borderRadius: tokens.radius.pill,
   },
   tab: {
     alignItems: 'center',
+    borderRadius: tokens.radius.pill,
     flex: 1,
     gap: 2,
     paddingVertical: 6,

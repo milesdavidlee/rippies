@@ -49,8 +49,8 @@ export function DiscoverScreen({
           <Text style={styles.kicker}>FEATURED PACK</Text>
           <Text style={styles.heroTitle}>{featuredPack.name} Edition</Text>
           <Text style={styles.heroDetail}>
-            One sealed pack from the original Rippies run. Your card is assigned
-            before the reveal begins.
+            One sealed pack from the original Rippies run. All five cards are
+            assigned before the reveal begins.
           </Text>
           <Pressable
             accessibilityRole="button"
@@ -80,8 +80,8 @@ export function DiscoverScreen({
         <View style={styles.infoCopy}>
           <Text style={styles.infoTitle}>Reveal receipts are permanent</Text>
           <Text style={styles.infoBody}>
-            Close the app at any point and the same assigned card will be waiting
-            when you return.
+            Close the app at any point and the same five assigned cards will be
+            waiting when you return.
           </Text>
         </View>
       </View>
@@ -188,7 +188,11 @@ const styles = StyleSheet.create({
     marginTop: 6,
   },
   textButton: {
-    padding: 8,
+    borderColor: tokens.color.line,
+    borderRadius: tokens.radius.pill,
+    borderWidth: 1,
+    paddingHorizontal: 13,
+    paddingVertical: 8,
   },
   textButtonLabel: {
     color: tokens.color.textMuted,

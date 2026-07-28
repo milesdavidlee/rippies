@@ -18,6 +18,7 @@ namespace Rippies.Reveal
         private GUIStyle productCenteredDetailStyle;
         private GUIStyle productButtonStyle;
         private GUIStyle productButtonDisabledStyle;
+        private Texture2D roundedPillTexture;
 
         public void SetProductMode(bool enabled)
         {
@@ -157,17 +158,18 @@ namespace Rippies.Reveal
                 productStatusStyle);
             GUI.Label(
                 new Rect(contentX, 136f, contentWidth, 34f),
-                "Added to your collection",
+                "Added " + Mathf.Max(1, controller.RevealedCardCount) +
+                    " cards to your collection",
                 productCenteredTitleStyle);
             GUI.Label(
                 new Rect(contentX, 172f, contentWidth, 22f),
                 controller.IsClosing
                     ? "Taking you back to your cards…"
-                    : "Drag the card to inspect every angle.",
+                    : "Tap a card to inspect it. Tap again to return.",
                 productCenteredDetailStyle);
 
             Rect button = new Rect(contentX + 42f, logicalHeight - 88f, contentWidth - 84f, 48f);
-            DrawRect(
+            DrawRoundedRect(
                 button,
                 controller.IsClosing
                     ? ProductDesignLanguage.Line
@@ -203,6 +205,14 @@ namespace Rippies.Reveal
             Color previousColor = GUI.color;
             GUI.color = color;
             GUI.DrawTexture(rect, Texture2D.whiteTexture);
+            GUI.color = previousColor;
+        }
+
+        private void DrawRoundedRect(Rect rect, Color color)
+        {
+            Color previousColor = GUI.color;
+            GUI.color = color;
+            GUI.DrawTexture(rect, roundedPillTexture);
             GUI.color = previousColor;
         }
 
@@ -273,6 +283,42 @@ namespace Rippies.Reveal
             {
                 normal = { textColor = ProductDesignLanguage.TextMuted }
             };
+            roundedPillTexture = BuildRoundedPillTexture();
+        }
+
+        private static Texture2D BuildRoundedPillTexture()
+        {
+            const int width = 128;
+            const int height = 64;
+            var texture = new Texture2D(width, height, TextureFormat.RGBA32, false)
+            {
+                name = "Rippies_RoundedPill",
+                wrapMode = TextureWrapMode.Clamp,
+                filterMode = FilterMode.Bilinear
+            };
+            var pixels = new Color32[width * height];
+            float radius = height * 0.5f;
+            for (int y = 0; y < height; y++)
+            {
+                for (int x = 0; x < width; x++)
+                {
+                    float nearestX = Mathf.Clamp(x + 0.5f, radius, width - radius);
+                    float nearestY = height * 0.5f;
+                    float distance = Vector2.Distance(
+                        new Vector2(x + 0.5f, y + 0.5f),
+                        new Vector2(nearestX, nearestY));
+                    byte alpha = distance <= radius - 1f
+                        ? (byte)255
+                        : distance >= radius
+                            ? (byte)0
+                            : (byte)Mathf.RoundToInt((radius - distance) * 255f);
+                    pixels[y * width + x] = new Color32(255, 255, 255, alpha);
+                }
+            }
+
+            texture.SetPixels32(pixels);
+            texture.Apply(false, true);
+            return texture;
         }
     }
 }

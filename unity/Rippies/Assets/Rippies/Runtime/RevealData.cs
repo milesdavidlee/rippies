@@ -42,8 +42,19 @@ namespace Rippies.Reveal
         public string revealId = "rev_demo_001";
         public string packTypeId = "rippies_genesis";
         public string assetVersion = "1";
+        public CardPayload[] cards = Array.Empty<CardPayload>();
         public CardPayload card = new CardPayload();
         public string receiptSignature = "local-demo";
+
+        public CardPayload[] Cards =>
+            cards != null && cards.Length > 0
+                ? cards
+                : card == null
+                    ? Array.Empty<CardPayload>()
+                    : new[] { card };
+
+        public CardPayload PrimaryCard =>
+            Cards.Length > 0 ? Cards[0] : card;
 
         public static RevealPayload FromJson(string json)
         {
@@ -103,16 +114,38 @@ namespace Rippies.Reveal
             sequence++;
             int seed = unchecked(Environment.TickCount * 397 ^ sequence * 7919);
             var random = new System.Random(seed);
+            string stamp = DateTime.UtcNow.ToString("HHmmssfff");
+            var cards = new CardPayload[5];
+            for (int index = 0; index < cards.Length; index++)
+            {
+                cards[index] = CreateCard(random, stamp, index);
+            }
+
+            return new RevealPayload
+            {
+                orderId = "ord_demo_" + stamp,
+                revealId = "rev_demo_" + stamp + "_" + sequence,
+                packTypeId = "rippies_genesis",
+                assetVersion = "prototype-3-five-card",
+                cards = cards,
+                card = cards[0],
+                receiptSignature = "local-random-demo"
+            };
+        }
+
+        private static CardPayload CreateCard(
+            System.Random random,
+            string stamp,
+            int index)
+        {
             string rarity = RollRarity(random);
             int rarityBonus = rarity == "grail" ? 24 :
                 rarity == "legendary" ? 18 :
                 rarity == "epic" ? 12 :
                 rarity == "rare" ? 6 : 0;
-            string stamp = DateTime.UtcNow.ToString("HHmmssfff");
-
-            var card = new CardPayload
+            return new CardPayload
             {
-                id = "card_demo_" + stamp + "_" + sequence,
+                id = "card_demo_" + stamp + "_" + sequence + "_" + (index + 1),
                 name = Adjectives[random.Next(Adjectives.Length)] + " " +
                     Subjects[random.Next(Subjects.Length)],
                 grade = "PROTOTYPE " + random.Next(1, 1000).ToString("000"),
@@ -124,16 +157,6 @@ namespace Rippies.Reveal
                 defense = RollStat(random, rarityBonus),
                 speed = RollStat(random, rarityBonus),
                 luck = RollStat(random, rarityBonus)
-            };
-
-            return new RevealPayload
-            {
-                orderId = "ord_demo_" + stamp,
-                revealId = "rev_demo_" + stamp + "_" + sequence,
-                packTypeId = "rippies_genesis",
-                assetVersion = "prototype-2",
-                card = card,
-                receiptSignature = "local-random-demo"
             };
         }
 

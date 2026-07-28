@@ -7,7 +7,7 @@ This document is the primary context file for **Codex running inside Visual Stud
 Rippies is designed as a hybrid product:
 
 - The normal mobile application owns the collection, store, account, inventory, navigation, and backend communication.
-- Unity is embedded as a full-screen native view only for opening a selected pack and inspecting its revealed card.
+- Unity is embedded as a full-screen native view only for opening a selected pack and inspecting its five revealed cards.
 
 The current working implementation includes the iOS React Native product shell
 and the Unity vertical slice as a real Unity-as-a-Library handoff. Android is
@@ -38,7 +38,7 @@ Implemented:
 - Bare React Native iOS shell with Discover, Collection, and Profile tabs.
 - iOS 26 navigation uses native `UIGlassEffect` Liquid Glass in dark mode,
   with an ultra-thin dark material fallback on earlier iOS releases.
-- Deterministic fake inventory, immutable reveal receipts, and resume-safe presentation state.
+- Deterministic fake inventory, immutable five-card reveal receipts, and resume-safe presentation state.
 - Automatic simulator Unity export/build/embed phase in the iOS app target.
 - Native Objective-C++ host that warms Unity behind React Native.
 - Crossfade to Unity only after the selected reveal emits `sceneReady`.
@@ -56,16 +56,21 @@ Implemented:
 - Procedurally inflated foil geometry with crimping, wrinkles, and jagged seam.
 - Top strip fully detaches and exits the frame.
 - Pack falls below frame and is disabled.
-- The purchased animation's card mesh emerges continuously from the wrapper,
+- The purchased animation's primary card mesh emerges continuously from the wrapper,
   receives a deterministic receipt-specific Rippies face texture, detaches at
-  the authored settle frame, and becomes the inspect target.
+  the authored settle frame, and becomes the anchor for four additional
+  receipt-assigned cards.
+- All five cards rise together, fan apart, and settle into a balanced 3/2 grid.
+  Tapping any card lifts it into a centered hero pose; horizontal drag rotates
+  it freely in 3D, and tapping it again returns it to its exact grid slot.
 - Without the local licensed GLB, the generated fallback card still emerges
   with name, rarity, archetype, stats, serial, flavor text, and pattern art.
 - Glow remains behind the card at inspect angles.
-- Touch-driven 3D card inspection around the authored mesh center, with
+- Touch-driven 3D card inspection around each card's renderer center, with
   unlimited horizontal turns, bounded vertical tilt, and continuous idle
   motion.
-- Return from completed reveal to the pack grid.
+- Fully oval native-shell and Unity completion actions.
+- Return from completed reveal to the native collection grid.
 
 The last verified iOS simulator flow was:
 
@@ -77,10 +82,11 @@ Collection tab
   -> selected payload reaches NativeRevealBridge
   -> matching Unity pack crossfades full screen
   -> swipe the seal
-  -> Unity animates strip, pack, glow, and assigned card
+  -> Unity animates strip, pack, glow, and the primary assigned card
+  -> five assigned cards fan out and settle into a 3/2 grid
   -> revealComplete keeps Unity visible in inspect mode
-  -> user rotates the real 3D card beneath the completion canvas
-  -> View collection animates the card closed and emits collectionRequested
+  -> user taps any card, rotates it in 3D, and taps again to return it
+  -> View collection closes the group and emits collectionRequested
   -> native crossfade reveals the React Native Cards segment
 ```
 
@@ -94,6 +100,7 @@ Assets/Rippies/Runtime/SwipeTearInteractor.cs
 Assets/Rippies/Runtime/FoilPackDeformer.cs
 Assets/Rippies/Runtime/AuthoredPackDriver.cs
 Assets/Rippies/Runtime/CardFaceTextureFactory.cs
+Assets/Rippies/Runtime/CardGroupPresentation.cs
 Assets/Rippies/Runtime/RevealDirector.cs
 Assets/Rippies/Runtime/RevealGlowPulse.cs
 Assets/Rippies/Runtime/GeneratedCardPresenter.cs
@@ -222,6 +229,83 @@ On Android, Unity calls `onUnityRevealEvent(payload)` on the current Unity host 
   "revealId": "rev_456",
   "packTypeId": "rippies_prism",
   "assetVersion": "prototype-2",
+  "cards": [
+    {
+      "id": "card_789",
+      "name": "Prism Titan",
+      "grade": "PROTOTYPE 112",
+      "rarityTier": "rare",
+      "archetype": "Wildcard",
+      "accentHex": "#B96CFF",
+      "flavorText": "Nothing stays sealed forever.",
+      "attack": 67,
+      "defense": 70,
+      "speed": 60,
+      "luck": 77,
+      "frontImageUrl": "",
+      "backImageUrl": ""
+    },
+    {
+      "id": "card_790",
+      "name": "Spectrum Ace",
+      "grade": "PROTOTYPE 113",
+      "rarityTier": "common",
+      "archetype": "Runner",
+      "accentHex": "#B96CFF",
+      "flavorText": "Outrun the impossible.",
+      "attack": 77,
+      "defense": 83,
+      "speed": 88,
+      "luck": 89,
+      "frontImageUrl": "",
+      "backImageUrl": ""
+    },
+    {
+      "id": "card_791",
+      "name": "Violet Oracle",
+      "grade": "PROTOTYPE 114",
+      "rarityTier": "rare",
+      "archetype": "Oracle",
+      "accentHex": "#B96CFF",
+      "flavorText": "Luck favors the luminous.",
+      "attack": 72,
+      "defense": 80,
+      "speed": 66,
+      "luck": 91,
+      "frontImageUrl": "",
+      "backImageUrl": ""
+    },
+    {
+      "id": "card_792",
+      "name": "Prism Phantom",
+      "grade": "PROTOTYPE 115",
+      "rarityTier": "rare",
+      "archetype": "Sentinel",
+      "accentHex": "#B96CFF",
+      "flavorText": "Protect the signal.",
+      "attack": 84,
+      "defense": 92,
+      "speed": 60,
+      "luck": 78,
+      "frontImageUrl": "",
+      "backImageUrl": ""
+    },
+    {
+      "id": "card_793",
+      "name": "Iris Runner",
+      "grade": "PROTOTYPE 116",
+      "rarityTier": "ultra",
+      "archetype": "Wildcard",
+      "accentHex": "#B96CFF",
+      "flavorText": "Every pull changes the story.",
+      "attack": 90,
+      "defense": 88,
+      "speed": 94,
+      "luck": 90,
+      "frontImageUrl": "",
+      "backImageUrl": ""
+    }
+  ],
   "card": {
     "id": "card_789",
     "name": "Prism Titan",
@@ -240,6 +324,11 @@ On Android, Unity calls `onUnityRevealEvent(payload)` on the current Unity host 
   "receiptSignature": "signed-by-server"
 }
 ```
+
+`cards` is the immutable five-card result. `card` mirrors `cards[0]` as a
+temporary backward-compatible primary-hit alias for older stored receipts.
+Unity must present the array exactly as supplied and must never add, remove, or
+reroll cards.
 
 Production must validate the signature or trust a payload already validated by the native shell.
 
@@ -261,7 +350,7 @@ Production shell responsibilities:
 - Wait for `sceneReady`.
 - Crossfade the native selected tile to the matching Unity pack.
 - Route lifecycle, mute, skip, and recovery actions.
-- Keep Unity active for card inspection after `revealComplete`.
+- Keep Unity active for five-card grid and hero inspection after `revealComplete`.
 - Park Unity after `collectionRequested` completes the return transition.
 
 The checked-in mobile stack is bare React Native. A managed-only Expo project

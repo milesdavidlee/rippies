@@ -1,4 +1,5 @@
 using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace Rippies.Reveal
@@ -14,6 +15,8 @@ namespace Rippies.Reveal
         [SerializeField] private float reducedMotionMultiplier = 0.35f;
 
         private Transform interactiveCard;
+        private readonly List<Transform> interactiveCards = new List<Transform>();
+        private CardGroupPresentation cardGroup;
         private Vector3 cardStartPosition;
         private Quaternion cardStartRotation;
         private Vector3 cardStartScale;
@@ -125,7 +128,9 @@ namespace Rippies.Reveal
                     interactiveCard.localRotation = Quaternion.identity;
                     interactiveCard.localScale = cardStartScale * 1.05f;
                 }
-                softOrbit?.SetCard(interactiveCard, true);
+                BuildCardGroup(owner, interactiveCard);
+                cardGroup?.SetRevealProgress(1f);
+                softOrbit?.SetCardGroup(cardGroup);
             }
 
             if (revealLight != null)
@@ -136,6 +141,7 @@ namespace Rippies.Reveal
             owner.NotifyOpening();
             owner.NotifyCardVisible();
             owner.NotifyRevealComplete();
+            cardGroup?.EnableInteraction();
         }
 
         public void CloseToCollection(PackRipController owner)
@@ -159,6 +165,9 @@ namespace Rippies.Reveal
 
             presentationIdle = false;
             revealGlow?.SetRevealAmount(0f);
+            cardGroup?.DisposeCopies();
+            cardGroup = null;
+            interactiveCards.Clear();
             interactiveCard = card;
             softOrbit?.SetCard(card);
 
@@ -393,12 +402,44 @@ namespace Rippies.Reveal
 
             revealGlow?.SetRevealAmount(1f);
             owner.SampleAuthoredOpening(1f);
+            BuildCardGroup(owner, interactiveCard);
+            if (cardGroup != null)
+            {
+                cardGroup.SetRevealProgress(0f);
+                yield return Tween(0.84f * motion, value =>
+                {
+                    cardGroup.SetRevealProgress(EaseOutCubic(value));
+                });
+                cardGroup.SetRevealProgress(1f);
+                softOrbit?.SetCardGroup(cardGroup);
+            }
+
             owner.NotifyRevealComplete();
+            cardGroup?.EnableInteraction();
             sequence = null;
         }
 
         private IEnumerator CloseSequence(PackRipController owner)
         {
+            if (cardGroup != null)
+            {
+                cardGroup.PrepareClose();
+                yield return Tween(ProductDesignLanguage.StandardSeconds, value =>
+                {
+                    float eased = Mathf.SmoothStep(0f, 1f, value);
+                    revealGlow?.SetRevealAmount(1f - eased * 0.72f);
+                    cardGroup.SetCloseProgress(eased);
+                    if (revealLight != null)
+                    {
+                        revealLight.intensity = Mathf.Lerp(4.5f, 1.8f, eased);
+                    }
+                });
+
+                owner.NotifyCollectionRequested();
+                sequence = null;
+                yield break;
+            }
+
             Transform closingCard = interactiveCard;
             Vector3 startingPosition = closingCard == null ? Vector3.zero : closingCard.position;
             Quaternion startingRotation = closingCard == null ? Quaternion.identity : closingCard.localRotation;
@@ -486,6 +527,54 @@ namespace Rippies.Reveal
             }
 
             return authoredCard;
+        }
+
+        private void BuildCardGroup(PackRipController owner, Transform primary)
+        {
+            cardGroup?.DisposeCopies();
+            cardGroup = null;
+            interactiveCards.Clear();
+            if (primary == null)
+            {
+                return;
+            }
+
+            interactiveCards.Add(primary);
+            CardPayload[] payloadCards = owner.RevealCards;
+            int cardCount = Mathf.Min(payloadCards.Length, 5);
+            for (int index = 1; index < cardCount; index++)
+            {
+                CardPayload payloadCard = payloadCards[index];
+                Transform copy = owner.HasAuthoredPack
+                    ? owner.CreateAuthoredCardCopy(primary, payloadCard)
+                    : CreateGeneratedCardCopy(primary, payloadCard);
+                if (copy != null)
+                {
+                    interactiveCards.Add(copy);
+                }
+            }
+
+            cardGroup = new CardGroupPresentation();
+            cardGroup.Configure(Camera.main, interactiveCards);
+        }
+
+        private static Transform CreateGeneratedCardCopy(
+            Transform source,
+            CardPayload payload)
+        {
+            if (source == null)
+            {
+                return null;
+            }
+
+            GameObject copy = Instantiate(
+                source.gameObject,
+                source.parent,
+                true);
+            copy.name = "GeneratedCardPresentation_" +
+                (payload == null ? "unassigned" : payload.id);
+            copy.GetComponent<GeneratedCardPresenter>()?.Apply(payload);
+            return copy.transform;
         }
 
         private void SetPackPresentedPose()

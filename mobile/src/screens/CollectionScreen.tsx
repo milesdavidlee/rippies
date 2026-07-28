@@ -35,6 +35,11 @@ export function CollectionScreen({
   const openedPacks = packs.filter(pack =>
     openedPackIds.includes(pack.inventoryId),
   );
+  const openedCards = openedPacks.flatMap(pack =>
+    (pack.reveal.cards?.length ? pack.reveal.cards : [pack.reveal.card]).map(
+      card => ({card, pack}),
+    ),
+  );
 
   return (
     <ScrollView
@@ -43,7 +48,7 @@ export function CollectionScreen({
       <ScreenHeader
         eyebrow="THE VAULT"
         title="Your collection"
-        detail="Select any unopened pack. The assigned card is restored on every retry."
+        detail="Select any unopened pack. Its five assigned cards are restored on every retry."
       />
 
       <View style={styles.filterRow}>
@@ -80,7 +85,7 @@ export function CollectionScreen({
             Cards
           </Text>
           <View style={styles.count}>
-            <Text style={styles.countText}>{openedPacks.length}</Text>
+            <Text style={styles.countText}>{openedCards.length}</Text>
           </View>
         </Pressable>
       </View>
@@ -116,12 +121,12 @@ export function CollectionScreen({
               </Pressable>
             ))}
         </View>
-      ) : openedPacks.length ? (
+      ) : openedCards.length ? (
         <View style={[styles.grid, {gap}]}>
-          {openedPacks.map(pack => (
+          {openedCards.map(({card, pack}) => (
             <View
-              accessibilityLabel={`${pack.reveal.card.name}, ${pack.reveal.card.rarityTier}`}
-              key={pack.reveal.card.id}
+              accessibilityLabel={`${card.name}, ${card.rarityTier}`}
+              key={card.id}
               style={[styles.cardTile, {width: tileWidth}]}>
               <View
                 style={[
@@ -138,12 +143,12 @@ export function CollectionScreen({
                   {pack.theme.symbol}
                 </Text>
               </View>
-              <Text style={styles.cardName}>{pack.reveal.card.name}</Text>
+              <Text style={styles.cardName}>{card.name}</Text>
               <Text style={[styles.rarity, {color: pack.theme.accent}]}>
-                {pack.reveal.card.rarityTier.toUpperCase()} ·{' '}
-                {pack.reveal.card.archetype.toUpperCase()}
+                {card.rarityTier.toUpperCase()} ·{' '}
+                {card.archetype.toUpperCase()}
               </Text>
-              <Text style={styles.edition}>{pack.reveal.card.grade}</Text>
+              <Text style={styles.edition}>{card.grade}</Text>
             </View>
           ))}
         </View>
@@ -188,7 +193,7 @@ const styles = StyleSheet.create({
   count: {
     alignItems: 'center',
     backgroundColor: '#DCE1EA',
-    borderRadius: 8,
+    borderRadius: tokens.radius.pill,
     height: 18,
     justifyContent: 'center',
     minWidth: 18,

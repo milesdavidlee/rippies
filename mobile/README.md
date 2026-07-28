@@ -13,15 +13,15 @@ reveal when a local `UnityFramework.framework` export is embedded.
 - Discover, Collection, and Profile tabs with a shared visual language and a
   native iOS 26 Liquid Glass dark-mode tab bar (dark material fallback on
   earlier iOS).
-- Six deterministic fake inventory records with assigned card payloads.
+- Six deterministic fake inventory records with five assigned cards per pack.
 - Selectable unopened packs and a real Cards collection segment.
 - A full-screen local fallback plus the real embedded Unity tear animation.
 - Persistent reveal receipts and opened-pack state through AsyncStorage.
-- Resume-safe behavior: the assigned card and presentation state never reroll.
+- Resume-safe behavior: the assigned card group and presentation state never reroll.
 - An iOS Objective-C++ host module matching the Unity bridge contract.
 - Optional locally licensed authored pack animation with deterministic
   full-face front and pack-specific back artwork, live extraction camera
-  tracking, and a direct 3D card handoff.
+  tracking, and a five-card fan/grid/inspect handoff.
 - Automatic local fallback when the Unity framework is not embedded.
 - Shared color, spacing, radius, motion, and pack tokens in
   `../shared/rippies-design-tokens.json`.
@@ -55,17 +55,18 @@ bundle exec pod install --project-directory=ios
 4. Swipe the Unity seal left-to-right. In `LOCAL REVEAL` fallback mode, swipe or
    tap the reveal track. VoiceOver users can activate **Rip pack** to invoke
    Unity's accessible skip-to-reveal path.
-5. Verify the card coming out of the authored wrapper is the same object that
-   remains on screen, then drag it horizontally and vertically to inspect it in
-   3D.
-6. Select **View collection** on the Unity completion canvas and verify the
+5. Verify the primary card coming out of the authored wrapper remains in the
+   five-card group, then watch the group fan into a 3/2 grid.
+6. Tap each card to lift it forward, drag horizontally to rotate through the
+   front, edge, and custom back, then tap it again to return it to the same slot.
+7. Select **View collection** on the Unity completion canvas and verify the
    coordinated close returns to the populated **Cards** segment.
-7. Reopen the same receipt before confirming, or restart the app, to verify the
-   assigned card is restored.
-8. Without restarting the app, open a second and third pack and verify the
-   authored card keeps the same size, center pivot, and reachable collection
-   action.
-9. Use **Profile → Reset fake collection** to replay from a clean state.
+8. Reopen the same receipt before confirming, or restart the app, to verify the
+   five assigned cards are restored.
+9. Without restarting the app, open a second and third pack and verify the
+   authored card group keeps the same size, centered pivots, and reachable
+   collection action.
+10. Use **Profile → Reset fake collection** to replay from a clean state.
 
 To test the real Unity handoff, export the simulator player before running the
 app:
@@ -102,7 +103,8 @@ The iOS host:
 2. Warms Unity while the React Native shell remains visible.
 3. Sends `PrepareReveal(payloadJson)`.
 4. Promotes Unity only after `sceneReady`.
-5. Keeps the card interactive in Unity after `revealComplete`.
+5. Keeps the five-card grid and selected 3D card interactive in Unity after
+   `revealComplete`.
 6. Emits `collectionRequested` only after the user chooses **View collection**
    and Unity finishes its closing motion.
 7. Restores the React Native window on disposal or interruption.

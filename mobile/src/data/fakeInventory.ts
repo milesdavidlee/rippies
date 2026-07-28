@@ -21,14 +21,53 @@ const makeReveal = (
   inventoryId: string,
   packTypeId: string,
   card: RevealPayload['card'],
-): RevealPayload => ({
-  orderId: `ord_fake_${inventoryId}`,
-  revealId: `rev_fake_${inventoryId}`,
-  packTypeId,
-  assetVersion: 'ios-fake-pass-1',
-  card,
-  receiptSignature: `fake-signed-receipt-${inventoryId}`,
-});
+): RevealPayload => {
+  const companionNames: Record<string, string[]> = {
+    pack_001: ['Alloy Oracle', 'Mirror Fox', 'Static Ronin', 'Chrome Runner'],
+    pack_002: ['Dawn Striker', 'Helio Fox', 'Corona Warden', 'Solar Nomad'],
+    pack_003: ['Spectrum Ace', 'Violet Oracle', 'Prism Phantom', 'Iris Runner'],
+    pack_004: ['Cinder Warden', 'Flare Ronin', 'Ashen Oracle', 'Ember Racer'],
+    pack_005: ['Current Fox', 'Blue Sentinel', 'Tide Drifter', 'Abyss Runner'],
+    pack_006: ['Moss Warden', 'Canopy Fox', 'Verdant Oracle', 'Root Titan'],
+  };
+  const rarityTiers = ['common', 'rare', 'rare', 'ultra'];
+  const archetypes = ['Runner', 'Oracle', 'Sentinel', 'Wildcard'];
+  const statOffsets = [
+    [-14, -5, 12, -8],
+    [-7, 5, 4, 7],
+    [5, -9, 9, -2],
+    [11, 7, -6, 10],
+  ];
+  const clampStat = (value: number) => Math.max(1, Math.min(99, value));
+  const companions = (companionNames[inventoryId] ?? []).map((name, index) => {
+    const offsets = statOffsets[index];
+    return {
+      ...card,
+      id: `${card.id}_${index + 2}`,
+      name,
+      grade: `PROTOTYPE ${String(
+        (Number(card.grade.match(/\d+/)?.[0]) || 1) + index + 1,
+      ).padStart(3, '0')}`,
+      rarityTier: rarityTiers[index],
+      archetype: archetypes[index],
+      flavorText: `${name} was assigned to this sealed pack before reveal.`,
+      attack: clampStat(card.attack + offsets[0]),
+      defense: clampStat(card.defense + offsets[1]),
+      speed: clampStat(card.speed + offsets[2]),
+      luck: clampStat(card.luck + offsets[3]),
+    };
+  });
+
+  return {
+    orderId: `ord_fake_${inventoryId}`,
+    revealId: `rev_fake_${inventoryId}`,
+    packTypeId,
+    assetVersion: 'ios-fake-pass-2-five-card',
+    cards: [card, ...companions],
+    card,
+    receiptSignature: `fake-signed-receipt-${inventoryId}`,
+  };
+};
 
 export const fakeInventory: InventoryPack[] = [
   {

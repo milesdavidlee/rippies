@@ -1,6 +1,7 @@
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.InputSystem.EnhancedTouch;
+using System.Collections.Generic;
 using Touch = UnityEngine.InputSystem.EnhancedTouch.Touch;
 
 namespace Rippies.Reveal
@@ -31,12 +32,27 @@ namespace Rippies.Reveal
         private bool wasComplete;
         private bool trackingOpening;
         private float openingTrackProgress;
+        private CardGroupPresentation cardGroup;
 
         public void SetCard(Transform target, bool trackUntilComplete = false)
         {
+            cardGroup = null;
             card = target;
             trackingOpening = trackUntilComplete;
             openingTrackProgress = trackUntilComplete ? 1f : 0f;
+            wasComplete = false;
+            desiredYaw = 0f;
+            desiredPitch = 0f;
+            currentYaw = 0f;
+            currentPitch = 0f;
+        }
+
+        public void SetCardGroup(CardGroupPresentation group)
+        {
+            cardGroup = group;
+            card = group == null ? null : group.PrimaryCard;
+            trackingOpening = false;
+            openingTrackProgress = 0f;
             wasComplete = false;
             desiredYaw = 0f;
             desiredPitch = 0f;
@@ -111,7 +127,15 @@ namespace Rippies.Reveal
                 wasComplete = true;
                 cardPresentedPosition = card.localPosition;
                 cardPresentedRotation = card.localRotation;
-                FrameCard();
+                if (cardGroup == null)
+                {
+                    FrameCard();
+                }
+                else
+                {
+                    FrameCardGroup(cardGroup.Cards);
+                }
+
                 if (packShell != null)
                 {
                     shellPresentedPosition = packShell.localPosition;
@@ -133,6 +157,20 @@ namespace Rippies.Reveal
                     targetCamera.transform.rotation,
                     focusedCameraRotation,
                     Damp());
+                return;
+            }
+
+            if (cardGroup != null)
+            {
+                targetCamera.transform.position = Vector3.Lerp(
+                    targetCamera.transform.position,
+                    focusedCameraPosition,
+                    Damp());
+                targetCamera.transform.rotation = Quaternion.Slerp(
+                    targetCamera.transform.rotation,
+                    focusedCameraRotation,
+                    Damp());
+                cardGroup.TickInput(smoothing, dragSensitivity, maximumPitch);
                 return;
             }
 
@@ -203,6 +241,47 @@ namespace Rippies.Reveal
                 out focusedCameraRotation);
         }
 
+        private void FrameCardGroup(IReadOnlyList<Transform> targets)
+        {
+            bool hasBounds = false;
+            Bounds bounds = default;
+            if (targets != null)
+            {
+                foreach (Transform target in targets)
+                {
+                    if (target == null)
+                    {
+                        continue;
+                    }
+
+                    foreach (Renderer renderer in target.GetComponentsInChildren<Renderer>(true))
+                    {
+                        if (!hasBounds)
+                        {
+                            bounds = renderer.bounds;
+                            hasBounds = true;
+                        }
+                        else
+                        {
+                            bounds.Encapsulate(renderer.bounds);
+                        }
+                    }
+                }
+            }
+
+            if (!hasBounds)
+            {
+                FrameCard();
+                return;
+            }
+
+            CalculateFocusPose(
+                bounds,
+                0.74f,
+                out focusedCameraPosition,
+                out focusedCameraRotation);
+        }
+
         private void TrackOpeningCamera()
         {
             CalculateFocusPose(
@@ -257,6 +336,16 @@ namespace Rippies.Reveal
             }
 
             center = hasBounds ? bounds.center : center;
+            CalculateFocusPose(bounds, fill, out position, out rotation);
+        }
+
+        private void CalculateFocusPose(
+            Bounds bounds,
+            float fill,
+            out Vector3 position,
+            out Quaternion rotation)
+        {
+            Vector3 center = bounds.center;
             float verticalHalf = Mathf.Max(bounds.extents.y, 0.01f);
             float horizontalHalf = Mathf.Max(bounds.extents.x, 0.01f);
             float effectiveHalf = Mathf.Max(

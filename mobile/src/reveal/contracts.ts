@@ -19,6 +19,8 @@ export type RevealPayload = {
   revealId: string;
   packTypeId: string;
   assetVersion: string;
+  cards: CardPayload[];
+  /** Primary hit retained for backward-compatible receipt recovery. */
   card: CardPayload;
   receiptSignature: string;
 };

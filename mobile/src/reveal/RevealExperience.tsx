@@ -212,6 +212,7 @@ export function RevealExperience({pack, onCancel, onComplete}: Props) {
   });
   const ready = stage === 'ready';
   const complete = stage === 'complete';
+  const revealedCardCount = pack.reveal.cards?.length ?? 1;
 
   return (
     <Modal
@@ -265,10 +266,10 @@ export function RevealExperience({pack, onCancel, onComplete}: Props) {
             <View style={styles.completionHeader}>
               <Text style={styles.completionEyebrow}>+ COLLECTION</Text>
               <Text style={styles.completionTitle}>
-                Added to your collection
+                Added {revealedCardCount} cards to your collection
               </Text>
               <Text style={styles.completionDetail}>
-                Drag the card to inspect every angle.
+                Tap a card to inspect it. Tap again to return.
               </Text>
             </View>
           ) : null}
@@ -425,7 +426,7 @@ export function RevealExperience({pack, onCancel, onComplete}: Props) {
             ) : null}
             {stage === 'revealing' ? (
               <>
-                <Text style={styles.promptTitle}>Your card is emerging</Text>
+                <Text style={styles.promptTitle}>Your cards are emerging</Text>
                 <Text style={styles.promptDetail}>Reveal committed securely.</Text>
               </>
             ) : null}
@@ -445,7 +446,7 @@ export function RevealExperience({pack, onCancel, onComplete}: Props) {
               <>
                 <Text style={styles.promptTitle}>Reveal paused safely</Text>
                 <Text style={styles.promptDetail}>
-                  Close and retry. Your assigned card will not change.
+                  Close and retry. Your five assigned cards will not change.
                 </Text>
               </>
             ) : null}
@@ -486,7 +487,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: tokens.color.surface,
     borderColor: tokens.color.line,
-    borderRadius: 18,
+    borderRadius: tokens.radius.pill,
     borderWidth: 1,
     height: 42,
     justifyContent: 'center',

@@ -34,6 +34,9 @@ namespace Rippies.Reveal
         public RipState State { get; private set; } = RipState.Loading;
         public float TearProgress { get; private set; }
         public RevealPayload Payload => payload;
+        public CardPayload[] RevealCards =>
+            payload == null ? Array.Empty<CardPayload>() : payload.Cards;
+        public int RevealedCardCount => RevealCards.Length;
         public Color AccentColor => accentColor;
         public bool IsClosing => closing;
         public bool HasAuthoredPack => authoredPack != null && authoredPack.IsAvailable;
@@ -82,9 +85,10 @@ namespace Rippies.Reveal
             // Unity stays resident between pack openings, so this ordering
             // prevents presentation-pivot transforms from leaking forward.
             ResetReveal();
-            cardPresenter?.Apply(payload.card);
-            authoredPack?.SetCard(payload.card, payload.packTypeId);
-            ApplyPackPalette(payload.card);
+            CardPayload primaryCard = payload.PrimaryCard;
+            cardPresenter?.Apply(primaryCard);
+            authoredPack?.SetCard(primaryCard, payload.packTypeId);
+            ApplyPackPalette(primaryCard);
             ApplyPackIdentity(payload.packTypeId);
             SetState(RipState.Presenting);
             revealDirector?.PlayPresentation(this, reducedMotion);
@@ -198,13 +202,24 @@ namespace Rippies.Reveal
             return authoredPack?.TakeOverCard(presentationParent);
         }
 
+        public Transform CreateAuthoredCardCopy(
+            Transform sourcePresentation,
+            CardPayload cardPayload)
+        {
+            return authoredPack?.CreatePresentationCardCopy(
+                sourcePresentation,
+                cardPayload,
+                payload == null ? "" : payload.packTypeId);
+        }
+
         public Transform AuthoredAnimationCard =>
             authoredPack == null ? null : authoredPack.AnimatedCard;
 
         public void NotifyCardVisible()
         {
             SetState(RipState.Revealing);
-            Emit("cardVisible", payload != null && payload.card != null ? payload.card.id : "");
+            CardPayload primaryCard = payload == null ? null : payload.PrimaryCard;
+            Emit("cardVisible", primaryCard == null ? "" : primaryCard.id);
         }
 
         public void NotifyRevealComplete()

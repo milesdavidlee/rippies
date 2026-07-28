@@ -12,8 +12,9 @@ iOS React Native product pass:
 - A selected-pack transition into the reveal position.
 - A JSON handoff through `NativeRevealBridge`.
 - Procedural foil-pack geometry and left-to-right tearing.
-- A detached top strip, falling pack, card reveal, rarity glow, and inspect orbit.
-- Randomized card content and coordinated pack/card palettes.
+- A detached top strip, falling pack, five-card fan/grid reveal, rarity glow,
+  and per-card 3D inspection.
+- Immutable receipt-assigned card content and coordinated pack/card palettes.
 - A checked-in Objective-C++ iOS Unity-as-a-Library host bridge.
 - A typed React Native bridge contract matching the Unity reveal events.
 

@@ -137,8 +137,11 @@ const styles = StyleSheet.create({
   },
   reset: {
     alignItems: 'center',
+    borderRadius: tokens.radius.pill,
     flexDirection: 'row',
     justifyContent: 'space-between',
+    marginVertical: 7,
+    paddingHorizontal: 12,
     paddingVertical: 17,
   },
   resetLabel: {

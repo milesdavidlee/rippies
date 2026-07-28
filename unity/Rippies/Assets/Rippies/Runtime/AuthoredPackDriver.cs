@@ -33,6 +33,8 @@ namespace Rippies.Reveal
 
         private readonly List<Renderer> fallbackRenderers = new List<Renderer>();
         private readonly List<Renderer> authoredRenderers = new List<Renderer>();
+        private readonly List<GameObject> presentationCopies = new List<GameObject>();
+        private readonly List<Texture2D> companionCardAtlases = new List<Texture2D>();
         private MaterialPropertyBlock materialProperties;
         private Transform contentRoot;
         private Transform demoCard;
@@ -130,6 +132,7 @@ namespace Rippies.Reveal
                 return;
             }
 
+            ClearPresentationCopies();
             RestoreAnimatedCardHierarchy();
             instance.SetActive(true);
             SampleAt(PresentationStart);
@@ -197,6 +200,33 @@ namespace Rippies.Reveal
             return presentationCard;
         }
 
+        public Transform CreatePresentationCardCopy(
+            Transform sourcePresentation,
+            CardPayload card,
+            string packTypeId)
+        {
+            if (!IsAvailable || sourcePresentation == null || card == null)
+            {
+                return null;
+            }
+
+            GameObject copy = Instantiate(
+                sourcePresentation.gameObject,
+                sourcePresentation.parent,
+                true);
+            copy.name = "AuthoredCardPresentation_" + card.id;
+            presentationCopies.Add(copy);
+
+            Texture2D atlas = BuildCardAtlas(card, packTypeId);
+            if (atlas != null)
+            {
+                companionCardAtlases.Add(atlas);
+                ApplyCardAtlas(copy.transform, atlas);
+            }
+
+            return copy.transform;
+        }
+
         public void SetAccent(Color accent)
         {
             if (!IsAvailable)
@@ -231,31 +261,70 @@ namespace Rippies.Reveal
             if (generatedCardAtlas != null)
             {
                 Destroy(generatedCardAtlas);
+                generatedCardAtlas = null;
             }
 
-            Texture2D front = CardFaceTextureFactory.BuildFront(card);
-            Texture2D back = CardFaceTextureFactory.BuildBack(card, packTypeId);
-            generatedCardAtlas = BakeFacesIntoAtlas(
-                originalCardAtlas,
-                front,
-                back);
-            Destroy(front);
-            Destroy(back);
+            generatedCardAtlas = BuildCardAtlas(card, packTypeId);
             if (generatedCardAtlas == null)
             {
                 return;
             }
 
+            ApplyCardAtlas(demoCard, generatedCardAtlas);
+        }
+
+        private Texture2D BuildCardAtlas(CardPayload card, string packTypeId)
+        {
+            Texture2D front = CardFaceTextureFactory.BuildFront(card);
+            Texture2D back = CardFaceTextureFactory.BuildBack(card, packTypeId);
+            Texture2D atlas = BakeFacesIntoAtlas(
+                originalCardAtlas,
+                front,
+                back);
+            Destroy(front);
+            Destroy(back);
+            return atlas;
+        }
+
+        private void ApplyCardAtlas(Transform target, Texture2D atlas)
+        {
+            if (target == null || atlas == null)
+            {
+                return;
+            }
+
             materialProperties ??= new MaterialPropertyBlock();
-            foreach (Renderer renderer in demoCard.GetComponentsInChildren<Renderer>(true))
+            foreach (Renderer renderer in target.GetComponentsInChildren<Renderer>(true))
             {
                 renderer.GetPropertyBlock(materialProperties);
-                materialProperties.SetTexture(BaseColorTextureId, generatedCardAtlas);
-                materialProperties.SetTexture(BaseMapId, generatedCardAtlas);
-                materialProperties.SetTexture(MainTextureId, generatedCardAtlas);
+                materialProperties.SetTexture(BaseColorTextureId, atlas);
+                materialProperties.SetTexture(BaseMapId, atlas);
+                materialProperties.SetTexture(MainTextureId, atlas);
                 materialProperties.SetColor(BaseColorFactorId, Color.white);
                 renderer.SetPropertyBlock(materialProperties);
             }
+        }
+
+        private void ClearPresentationCopies()
+        {
+            foreach (GameObject copy in presentationCopies)
+            {
+                if (copy != null)
+                {
+                    Destroy(copy);
+                }
+            }
+
+            presentationCopies.Clear();
+            foreach (Texture2D atlas in companionCardAtlases)
+            {
+                if (atlas != null)
+                {
+                    Destroy(atlas);
+                }
+            }
+
+            companionCardAtlases.Clear();
         }
 
         private Texture FindCardAtlas()
