@@ -46,6 +46,7 @@ export function RevealExperience({
   const entry = useRef(new Animated.Value(0)).current;
   const tearProgress = useRef(new Animated.Value(0)).current;
   const revealProgress = useRef(new Animated.Value(0)).current;
+  const gestureCue = useRef(new Animated.Value(0)).current;
   const receiptRef = useRef<RevealReceipt | null>(null);
   const usesVerticalGesture = revealExperience === 'silver_packet';
 
@@ -181,6 +182,25 @@ export function RevealExperience({
     revealProgress,
     tearProgress,
   ]);
+
+  useEffect(() => {
+    if (stage !== 'ready') {
+      gestureCue.stopAnimation();
+      gestureCue.setValue(0);
+      return;
+    }
+
+    const loop = Animated.loop(
+      Animated.timing(gestureCue, {
+        duration: 2200,
+        easing: Easing.inOut(Easing.cubic),
+        toValue: 1,
+        useNativeDriver: true,
+      }),
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [gestureCue, stage]);
 
   const commitFakeReveal = async () => {
     if (!receipt || !pack || stage !== 'ready') {
@@ -318,22 +338,10 @@ export function RevealExperience({
               style={styles.iconButton}>
               <Text style={styles.iconButtonText}>×</Text>
             </Pressable>
-            <View style={styles.securePill}>
-              <View style={styles.secureDot} />
-              <Text style={styles.secureText}>
-                {nativeMode ? 'UNITY CONNECTED' : 'LOCAL REVEAL'}
-              </Text>
-            </View>
-            <View style={styles.iconButton}>
-              <Text style={styles.iconButtonText}>•••</Text>
-            </View>
           </View>
 
           {complete ? (
             <View style={styles.completionHeader}>
-              <Text style={styles.completionEyebrow}>
-                {inspectionMode ? 'COLLECTION CARD' : '+ COLLECTION'}
-              </Text>
               <Text style={styles.completionTitle}>
                 {inspectionMode
                   ? displayedCard.name
@@ -348,6 +356,40 @@ export function RevealExperience({
           ) : null}
 
           <View style={styles.stage}>
+            {ready ? (
+              <View pointerEvents="none" style={styles.gestureCueFrame}>
+                <Animated.View
+                  style={[
+                    styles.gestureCue,
+                    usesVerticalGesture
+                      ? styles.gestureCueHorizontal
+                      : styles.gestureCueVertical,
+                    {
+                      backgroundColor: pack.theme.accent,
+                      opacity: gestureCue.interpolate({
+                        inputRange: [0, 0.15, 0.85, 1],
+                        outputRange: [0, 0.12, 0.12, 0],
+                      }),
+                      transform: [
+                        usesVerticalGesture
+                          ? {
+                              translateY: gestureCue.interpolate({
+                                inputRange: [0, 1],
+                                outputRange: [-210, 210],
+                              }),
+                            }
+                          : {
+                              translateX: gestureCue.interpolate({
+                                inputRange: [0, 1],
+                                outputRange: [-170, 170],
+                              }),
+                            },
+                      ],
+                    },
+                  ]}
+                />
+              </View>
+            ) : null}
             <Animated.View
               style={[
                 styles.packWrap,
@@ -477,69 +519,20 @@ export function RevealExperience({
                 }
                 {...(nativeMode ? {} : panResponder.panHandlers)}>
                 <Text style={styles.promptTitle}>
-                  {usesVerticalGesture ? 'Drag down to burst' : 'Swipe to rip'}
+                  Swipe to rip
                 </Text>
                 <Text style={styles.promptDetail}>
                   {usesVerticalGesture
-                    ? 'Start at the top seam and pull straight down.'
-                    : 'Drag across the seal from left to right.'}
+                    ? 'Start at the top seam and pull down.'
+                    : 'Drag across the top seam from left to right.'}
                 </Text>
-                {usesVerticalGesture ? (
-                  <View style={styles.pullTrack}>
-                    <View style={styles.pullRail} />
-                    <Animated.View
-                      style={[
-                        styles.pullFill,
-                        {
-                          backgroundColor: pack.theme.accent,
-                          height: tearProgress.interpolate({
-                            inputRange: [0, 1],
-                            outputRange: ['10%', '100%'],
-                          }),
-                        },
-                      ]}
-                    />
-                    <View
-                      style={[
-                        styles.pullStartDot,
-                        {backgroundColor: pack.theme.accent},
-                      ]}
-                    />
-                    <Text style={styles.pullStartLabel}>START</Text>
-                    <Text style={styles.pullArrow}>↓</Text>
-                  </View>
-                ) : (
-                  <View style={styles.swipeTrack}>
-                    <View style={styles.swipeRail} />
-                    <Animated.View
-                      style={[
-                        styles.swipeFill,
-                        {
-                          backgroundColor: pack.theme.accent,
-                          width: tearProgress.interpolate({
-                            inputRange: [0, 1],
-                            outputRange: ['12%', '100%'],
-                          }),
-                        },
-                      ]}
-                    />
-                    <View
-                      style={[
-                        styles.swipeStartDot,
-                        {backgroundColor: pack.theme.accent},
-                      ]}
-                    />
-                    <Text style={styles.swipeStartLabel}>START</Text>
-                    <Text style={styles.swipeArrow}>→</Text>
-                  </View>
-                )}
               </Pressable>
             ) : null}
             {stage === 'revealing' ? (
               <>
                 <Text style={styles.promptTitle}>
                   {inspectionMode
-                    ? 'Opening card inspector'
+                    ? 'Bringing your card forward'
                     : 'Your cards are emerging'}
                 </Text>
                 <Text style={styles.promptDetail}>
@@ -604,7 +597,7 @@ const styles = StyleSheet.create({
   topBar: {
     alignItems: 'center',
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent: 'flex-start',
     paddingHorizontal: 18,
     paddingTop: 8,
   },
@@ -623,29 +616,6 @@ const styles = StyleSheet.create({
     fontSize: 22,
     fontWeight: '500',
   },
-  securePill: {
-    alignItems: 'center',
-    backgroundColor: tokens.color.surface,
-    borderColor: tokens.color.line,
-    borderRadius: tokens.radius.pill,
-    borderWidth: 1,
-    flexDirection: 'row',
-    gap: 7,
-    paddingHorizontal: 13,
-    paddingVertical: 8,
-  },
-  secureDot: {
-    backgroundColor: tokens.color.success,
-    borderRadius: 4,
-    height: 6,
-    width: 6,
-  },
-  secureText: {
-    color: tokens.color.textMuted,
-    fontSize: 9,
-    fontWeight: '900',
-    letterSpacing: 1.2,
-  },
   stage: {
     alignItems: 'center',
     flex: 1,
@@ -659,17 +629,10 @@ const styles = StyleSheet.create({
     top: 84,
     zIndex: 2,
   },
-  completionEyebrow: {
-    color: tokens.color.cyan,
-    fontSize: 10,
-    fontWeight: '900',
-    letterSpacing: 1.5,
-  },
   completionTitle: {
     color: tokens.color.text,
     fontSize: 24,
     fontWeight: '900',
-    marginTop: 7,
     textAlign: 'center',
   },
   completionDetail: {
@@ -781,96 +744,33 @@ const styles = StyleSheet.create({
     marginTop: 6,
     textAlign: 'center',
   },
-  swipeTrack: {
-    height: 38,
-    marginHorizontal: 22,
-    marginTop: 20,
-    position: 'relative',
-  },
-  swipeRail: {
-    backgroundColor: 'rgba(255,255,255,0.14)',
-    height: 2,
-    left: 0,
+  gestureCueFrame: {
+    bottom: 28,
+    left: 20,
+    overflow: 'hidden',
     position: 'absolute',
+    right: 20,
+    top: 28,
+  },
+  gestureCue: {
+    borderRadius: 999,
+    position: 'absolute',
+    shadowColor: '#FFFFFF',
+    shadowOffset: {width: 0, height: 0},
+    shadowOpacity: 0.24,
+    shadowRadius: 24,
+  },
+  gestureCueHorizontal: {
+    height: 22,
+    left: 0,
     right: 0,
-    top: 10,
+    top: '50%',
   },
-  swipeFill: {
-    height: 2,
-    left: 0,
-    opacity: 0.9,
-    position: 'absolute',
-    top: 10,
-  },
-  swipeStartDot: {
-    borderRadius: 6,
-    height: 10,
-    left: -2,
-    position: 'absolute',
-    top: 6,
-    width: 10,
-  },
-  swipeStartLabel: {
-    color: tokens.color.textMuted,
-    fontSize: 8,
-    fontWeight: '900',
-    left: 0,
-    letterSpacing: 1,
-    position: 'absolute',
-    top: 23,
-  },
-  swipeArrow: {
-    color: tokens.color.text,
-    fontSize: 20,
-    position: 'absolute',
-    right: 0,
-    top: -3,
-  },
-  pullTrack: {
-    alignSelf: 'center',
-    height: 92,
-    marginTop: 16,
-    position: 'relative',
-    width: 70,
-  },
-  pullRail: {
-    backgroundColor: 'rgba(255,255,255,0.14)',
-    bottom: 8,
-    left: 34,
-    position: 'absolute',
-    top: 8,
-    width: 2,
-  },
-  pullFill: {
-    left: 34,
-    opacity: 0.9,
-    position: 'absolute',
-    top: 8,
-    width: 2,
-  },
-  pullStartDot: {
-    borderRadius: 6,
-    height: 10,
-    left: 30,
-    position: 'absolute',
-    top: 4,
-    width: 10,
-  },
-  pullStartLabel: {
-    color: tokens.color.textMuted,
-    fontSize: 8,
-    fontWeight: '900',
-    left: -10,
-    letterSpacing: 1,
-    position: 'absolute',
+  gestureCueVertical: {
+    bottom: 0,
+    left: '50%',
     top: 0,
-  },
-  pullArrow: {
-    bottom: -8,
-    color: tokens.color.text,
-    fontSize: 20,
-    left: 27,
-    position: 'absolute',
+    width: 22,
   },
   doneButton: {
     alignSelf: 'center',

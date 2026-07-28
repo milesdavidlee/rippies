@@ -10,8 +10,6 @@ namespace Rippies.Reveal
         private GUIStyle titleStyle;
         private GUIStyle labelStyle;
         private GUIStyle buttonStyle;
-        private GUIStyle productEyebrowStyle;
-        private GUIStyle productStatusStyle;
         private GUIStyle productTitleStyle;
         private GUIStyle productDetailStyle;
         private GUIStyle productCenteredTitleStyle;
@@ -82,7 +80,6 @@ namespace Rippies.Reveal
 
             float logicalWidth = Screen.width / scale;
             float logicalHeight = Screen.height / scale;
-            DrawProductStatus(logicalWidth);
 
             if (controller.State == RipState.Complete)
             {
@@ -96,107 +93,52 @@ namespace Rippies.Reveal
             GUI.matrix = previousMatrix;
         }
 
-        private void DrawProductStatus(float logicalWidth)
-        {
-            float pillWidth = 146f;
-            Rect pill = new Rect((logicalWidth - pillWidth) * 0.5f, 68f, pillWidth, 30f);
-            DrawPanel(pill, ProductDesignLanguage.Surface, ProductDesignLanguage.Line, 1f);
-
-            string status = controller.State == RipState.Complete
-                ? controller.IsInspectionMode
-                    ? "CARD INSPECTOR"
-                    : "INSPECT MODE"
-                : controller.State == RipState.Presenting
-                    ? "PACK INCOMING"
-                : controller.AcceptsTearInput
-                    ? "REVEAL READY"
-                    : "REVEALING";
-            GUI.Label(pill, "•  " + status, productStatusStyle);
-        }
-
         private void DrawTearPanel(float logicalWidth, float logicalHeight)
         {
-            if (controller.UsesVerticalTearGesture)
-            {
-                DrawVerticalTearPanel(logicalWidth, logicalHeight);
-                return;
-            }
-
             float contentWidth = Mathf.Min(logicalWidth - 64f, 350f);
             float contentX = (logicalWidth - contentWidth) * 0.5f;
-            float contentY = logicalHeight - 126f;
+            float contentY = logicalHeight - 92f;
 
+            DrawGestureAmbience(
+                logicalWidth,
+                logicalHeight,
+                controller.UsesVerticalTearGesture);
             GUI.Label(
-                new Rect(contentX, contentY, contentWidth, 18f),
-                "SWIPE TO RIP",
-                productStatusStyle);
+                new Rect(contentX, contentY, contentWidth, 28f),
+                "Swipe to rip",
+                productCenteredTitleStyle);
             GUI.Label(
-                new Rect(contentX, contentY + 22f, contentWidth, 22f),
-                "Drag across the seal from left to right.",
+                new Rect(contentX, contentY + 27f, contentWidth, 22f),
+                controller.UsesVerticalTearGesture
+                    ? "Start at the top seam and pull down."
+                    : "Drag across the top seam from left to right.",
                 productCenteredDetailStyle);
-
-            Rect track = new Rect(contentX, contentY + 63f, contentWidth, 2f);
-            DrawRect(track, new Color(1f, 1f, 1f, 0.12f));
-            DrawRect(
-                new Rect(
-                    track.x,
-                    track.y,
-                    track.width * controller.TearProgress,
-                    track.height),
-                controller.AccentColor);
-            DrawRect(
-                new Rect(track.x - 3f, track.y - 3f, 8f, 8f),
-                controller.AccentColor);
-            GUI.Label(
-                new Rect(track.x, track.y + 6f, 56f, 18f),
-                "START",
-                productEyebrowStyle);
-            GUI.Label(
-                new Rect(track.xMax - 28f, track.y - 16f, 28f, 28f),
-                "→",
-                productTitleStyle);
         }
 
-        private void DrawVerticalTearPanel(
+        private void DrawGestureAmbience(
             float logicalWidth,
-            float logicalHeight)
+            float logicalHeight,
+            bool vertical)
         {
-            float contentWidth = Mathf.Min(logicalWidth - 64f, 350f);
-            float contentX = (logicalWidth - contentWidth) * 0.5f;
-            float contentY = logicalHeight - 110f;
+            float cycle = Mathf.Repeat(Time.unscaledTime * 0.42f, 1f);
+            Color accent = controller.AccentColor;
+            float start = vertical ? 148f : 30f;
+            float travel = vertical
+                ? Mathf.Max(220f, logicalHeight - 330f)
+                : Mathf.Max(220f, logicalWidth - 60f);
+            float center = start + travel * cycle;
 
-            GUI.Label(
-                new Rect(contentX, contentY, contentWidth, 18f),
-                "DRAG DOWN TO BURST",
-                productStatusStyle);
-            GUI.Label(
-                new Rect(contentX, contentY + 22f, contentWidth, 22f),
-                "Start at the top seam and pull straight down.",
-                productCenteredDetailStyle);
-
-            float trackHeight = Mathf.Min(286f, logicalHeight * 0.34f);
-            float trackX = logicalWidth - 34f;
-            float trackY = Mathf.Max(158f, logicalHeight * 0.25f);
-            Rect track = new Rect(trackX, trackY, 2f, trackHeight);
-            DrawRect(track, new Color(1f, 1f, 1f, 0.12f));
-            DrawRect(
-                new Rect(
-                    track.x,
-                    track.y,
-                    track.width,
-                    track.height * controller.TearProgress),
-                controller.AccentColor);
-            DrawRect(
-                new Rect(track.x - 3f, track.y - 3f, 8f, 8f),
-                controller.AccentColor);
-            GUI.Label(
-                new Rect(track.x - 50f, track.y - 8f, 44f, 18f),
-                "START",
-                productEyebrowStyle);
-            GUI.Label(
-                new Rect(track.x - 13f, track.yMax - 4f, 28f, 30f),
-                "↓",
-                productTitleStyle);
+            for (int index = 0; index < 5; index++)
+            {
+                float distance = Mathf.Abs(index - 2f);
+                float alpha = 0.018f - distance * 0.004f;
+                Color color = new Color(accent.r, accent.g, accent.b, alpha);
+                float offset = (index - 2f) * 12f;
+                Rect band = vertical
+                    ? new Rect(30f, center + offset, logicalWidth - 60f, 18f)
+                    : new Rect(center + offset, 148f, 18f, logicalHeight - 302f);
+                DrawRect(band, color);
+            }
         }
 
         private void DrawCompletionPanel(float logicalWidth, float logicalHeight)
@@ -205,20 +147,14 @@ namespace Rippies.Reveal
             float contentX = (logicalWidth - contentWidth) * 0.5f;
 
             GUI.Label(
-                new Rect(contentX, 112f, contentWidth, 18f),
-                controller.IsInspectionMode
-                    ? "COLLECTION CARD"
-                    : "+  COLLECTION",
-                productStatusStyle);
-            GUI.Label(
-                new Rect(contentX, 136f, contentWidth, 34f),
+                new Rect(contentX, 104f, contentWidth, 34f),
                 controller.IsInspectionMode
                     ? controller.InspectionCard?.name ?? "Collection card"
                     : "Added " + Mathf.Max(1, controller.RevealedCardCount) +
                         " cards to your collection",
                 productCenteredTitleStyle);
             GUI.Label(
-                new Rect(contentX, 172f, contentWidth, 22f),
+                new Rect(contentX, 142f, contentWidth, 22f),
                 controller.IsClosing
                     ? "Taking you back to your cards…"
                     : controller.IsInspectionMode
@@ -248,18 +184,6 @@ namespace Rippies.Reveal
             }
 
             GUI.enabled = true;
-        }
-
-        private static void DrawPanel(Rect rect, Color fill, Color border, float borderWidth)
-        {
-            DrawRect(rect, border);
-            DrawRect(
-                new Rect(
-                    rect.x + borderWidth,
-                    rect.y + borderWidth,
-                    rect.width - borderWidth * 2f,
-                    rect.height - borderWidth * 2f),
-                fill);
         }
 
         private static void DrawRect(Rect rect, Color color)
@@ -301,17 +225,6 @@ namespace Rippies.Reveal
             buttonStyle = new GUIStyle(GUI.skin.button)
             {
                 fontStyle = FontStyle.Bold
-            };
-            productEyebrowStyle = new GUIStyle(GUI.skin.label)
-            {
-                alignment = TextAnchor.MiddleLeft,
-                fontSize = 10,
-                fontStyle = FontStyle.Bold,
-                normal = { textColor = ProductDesignLanguage.Cyan }
-            };
-            productStatusStyle = new GUIStyle(productEyebrowStyle)
-            {
-                alignment = TextAnchor.MiddleCenter
             };
             productTitleStyle = new GUIStyle(GUI.skin.label)
             {

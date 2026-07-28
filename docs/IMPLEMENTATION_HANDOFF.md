@@ -95,7 +95,8 @@ Collection tab
   -> Unity warms behind the native pack surface
   -> selected payload reaches NativeRevealBridge
   -> matching Unity pack crossfades full screen
-  -> follow the selected experience's vertical or horizontal tear guide
+  -> follow the selected experience's minimal sentence-case tear prompt
+     and subtle directional light sweep behind the pack
   -> Unity animates strip, pack, glow, and the primary assigned card
   -> five assigned cards fan out and settle into a 3/2 grid
   -> revealComplete keeps Unity visible in inspect mode
@@ -180,7 +181,9 @@ visual to each animated source card node. At authored settle it preserves that
 fan, adds the fifth assigned card, and hands all five to
 `CardGroupPresentation` for the grid and centered 3D inspector.
 Its ready pose is scaled to a smaller presentation frame with clear space on
-all sides for the vertical pull guide.
+all sides. The product overlay intentionally omits state pills and explicit
+start-to-finish rails; a low-opacity top-to-bottom light sweep provides the
+Silver pull cue, while the Loot experience uses a left-to-right sweep.
 
 At reveal preparation, `CardFaceTextureFactory` derives deterministic front
 and back artwork from the immutable `CardPayload` and selected `packTypeId`.
