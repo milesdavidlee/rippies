@@ -26,11 +26,17 @@ type Stage = 'preparing' | 'ready' | 'revealing' | 'complete' | 'error';
 
 type Props = {
   pack: InventoryPack | null;
+  inspectionCardId?: string | null;
   onCancel: () => void;
   onComplete: (pack: InventoryPack) => void;
 };
 
-export function RevealExperience({pack, onCancel, onComplete}: Props) {
+export function RevealExperience({
+  pack,
+  inspectionCardId,
+  onCancel,
+  onComplete,
+}: Props) {
   const {height, width} = useWindowDimensions();
   const [stage, setStage] = useState<Stage>('preparing');
   const [receipt, setReceipt] = useState<RevealReceipt | null>(null);
@@ -79,7 +85,18 @@ export function RevealExperience({pack, onCancel, onComplete}: Props) {
             }
             const currentReceipt = receiptRef.current ?? nextReceipt;
             if (event.eventName === 'sceneReady') {
-              setStage('ready');
+              if (inspectionCardId) {
+                setStage('revealing');
+                try {
+                  await UnityRevealBridge.skipReveal();
+                } catch {
+                  if (active) {
+                    setStage('error');
+                  }
+                }
+              } else {
+                setStage('ready');
+              }
             } else if (event.eventName === 'tearStarted') {
               const updated = await updatePresentationState(
                 currentReceipt,
@@ -100,15 +117,31 @@ export function RevealExperience({pack, onCancel, onComplete}: Props) {
               setReceipt(updated);
               setStage('complete');
             } else if (event.eventName === 'collectionRequested') {
-              onComplete(pack);
+              if (inspectionCardId) {
+                onCancel();
+              } else {
+                onComplete(pack);
+              }
             }
           });
-          await UnityRevealBridge.prepareReveal(nextReceipt.payload);
+          await UnityRevealBridge.prepareReveal(
+            inspectionCardId
+              ? {
+                  ...nextReceipt.payload,
+                  inspectionCardId,
+                  presentationMode: 'inspection',
+                }
+              : nextReceipt.payload,
+          );
         } else {
           setTimeout(() => {
             if (active) {
+              if (inspectionCardId) {
+                revealProgress.setValue(1);
+              }
               setStage(
-                nextReceipt.presentationState === 'complete'
+                inspectionCardId ||
+                  nextReceipt.presentationState === 'complete'
                   ? 'complete'
                   : 'ready',
               );
@@ -132,7 +165,15 @@ export function RevealExperience({pack, onCancel, onComplete}: Props) {
         });
       }
     };
-  }, [entry, onComplete, pack, revealProgress, tearProgress]);
+  }, [
+    entry,
+    inspectionCardId,
+    onCancel,
+    onComplete,
+    pack,
+    revealProgress,
+    tearProgress,
+  ]);
 
   const commitFakeReveal = async () => {
     if (!receipt || !pack || stage !== 'ready') {
@@ -193,6 +234,11 @@ export function RevealExperience({pack, onCancel, onComplete}: Props) {
     return null;
   }
 
+  const inspectionCard = inspectionCardId
+    ? pack.reveal.cards.find(card => card.id === inspectionCardId)
+    : undefined;
+  const displayedCard = inspectionCard ?? pack.reveal.card;
+  const inspectionMode = Boolean(inspectionCard);
   const heroPackWidth = Math.min(tokens.pack.heroWidth, width * 0.57);
   const packTranslateY = revealProgress.interpolate({
     inputRange: [0, 1],
@@ -264,12 +310,18 @@ export function RevealExperience({pack, onCancel, onComplete}: Props) {
 
           {complete ? (
             <View style={styles.completionHeader}>
-              <Text style={styles.completionEyebrow}>+ COLLECTION</Text>
+              <Text style={styles.completionEyebrow}>
+                {inspectionMode ? 'COLLECTION CARD' : '+ COLLECTION'}
+              </Text>
               <Text style={styles.completionTitle}>
-                Added {revealedCardCount} cards to your collection
+                {inspectionMode
+                  ? displayedCard.name
+                  : `Added ${revealedCardCount} cards to your collection`}
               </Text>
               <Text style={styles.completionDetail}>
-                Tap a card to inspect it. Tap again to return.
+                {inspectionMode
+                  ? 'Drag horizontally to inspect every angle.'
+                  : 'Tap a card to inspect it. Tap again to return.'}
               </Text>
             </View>
           ) : null}
@@ -347,19 +399,19 @@ export function RevealExperience({pack, onCancel, onComplete}: Props) {
                     {pack.theme.symbol}
                   </Text>
                 </View>
-                <Text style={styles.cardGrade}>{pack.reveal.card.grade}</Text>
-                <Text style={styles.cardName}>{pack.reveal.card.name}</Text>
+                <Text style={styles.cardGrade}>{displayedCard.grade}</Text>
+                <Text style={styles.cardName}>{displayedCard.name}</Text>
                 <Text
                   style={[styles.cardRarity, {color: pack.theme.accent}]}>
-                  {pack.reveal.card.rarityTier.toUpperCase()} ·{' '}
-                  {pack.reveal.card.archetype.toUpperCase()}
+                  {displayedCard.rarityTier.toUpperCase()} ·{' '}
+                  {displayedCard.archetype.toUpperCase()}
                 </Text>
                 <View style={styles.statsRow}>
                   {[
-                    ['ATK', pack.reveal.card.attack],
-                    ['DEF', pack.reveal.card.defense],
-                    ['SPD', pack.reveal.card.speed],
-                    ['LCK', pack.reveal.card.luck],
+                    ['ATK', displayedCard.attack],
+                    ['DEF', displayedCard.defense],
+                    ['SPD', displayedCard.speed],
+                    ['LCK', displayedCard.luck],
                   ].map(([label, value]) => (
                     <View key={label} style={styles.cardStat}>
                       <Text style={styles.cardStatValue}>{value}</Text>
@@ -374,9 +426,13 @@ export function RevealExperience({pack, onCancel, onComplete}: Props) {
           <View style={styles.bottom}>
             {stage === 'preparing' ? (
               <>
-                <Text style={styles.promptTitle}>Securing your reveal</Text>
+                <Text style={styles.promptTitle}>
+                  {inspectionMode ? 'Loading 3D inspection' : 'Securing your reveal'}
+                </Text>
                 <Text style={styles.promptDetail}>
-                  Restoring immutable receipt…
+                  {inspectionMode
+                    ? 'Restoring the original card asset…'
+                    : 'Restoring immutable receipt…'}
                 </Text>
               </>
             ) : null}
@@ -426,20 +482,34 @@ export function RevealExperience({pack, onCancel, onComplete}: Props) {
             ) : null}
             {stage === 'revealing' ? (
               <>
-                <Text style={styles.promptTitle}>Your cards are emerging</Text>
-                <Text style={styles.promptDetail}>Reveal committed securely.</Text>
+                <Text style={styles.promptTitle}>
+                  {inspectionMode
+                    ? 'Opening card inspector'
+                    : 'Your cards are emerging'}
+                </Text>
+                <Text style={styles.promptDetail}>
+                  {inspectionMode
+                    ? displayedCard.name
+                    : 'Reveal committed securely.'}
+                </Text>
               </>
             ) : null}
             {complete ? (
               <Pressable
                 accessibilityRole="button"
-                onPress={() => onComplete(pack)}
+                onPress={() =>
+                  inspectionMode ? onCancel() : onComplete(pack)
+                }
                 style={({pressed}) => [
                   styles.doneButton,
                   {backgroundColor: pack.theme.accent},
                   pressed && styles.pressed,
                 ]}>
-                <Text style={styles.doneButtonText}>View collection</Text>
+                {inspectionMode ? (
+                  <Text style={styles.doneButtonText}>Back to collection</Text>
+                ) : (
+                  <Text style={styles.doneButtonText}>View collection</Text>
+                )}
               </Pressable>
             ) : null}
             {stage === 'error' ? (

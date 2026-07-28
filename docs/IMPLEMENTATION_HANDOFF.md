@@ -36,8 +36,9 @@ Assets/Rippies/Scenes/PackReveal.unity
 Implemented:
 
 - Bare React Native iOS shell with Discover, Collection, and Profile tabs.
-- iOS 26 navigation uses native `UIGlassEffect` Liquid Glass in dark mode,
-  with an ultra-thin dark material fallback on earlier iOS releases.
+- iOS 26 navigation uses regular native `UIGlassEffect` Liquid Glass with an
+  animated bright selection capsule that follows the active tab, plus a
+  regular ultra-thin material fallback on earlier iOS releases.
 - Deterministic fake inventory, immutable five-card reveal receipts, and resume-safe presentation state.
 - Automatic simulator Unity export/build/embed phase in the iOS app target.
 - Native Objective-C++ host that warms Unity behind React Native.
@@ -71,6 +72,10 @@ Implemented:
   motion.
 - Fully oval native-shell and Unity completion actions.
 - Return from completed reveal to the native collection grid.
+- Every stored collection card is tappable. The shell sends that exact card ID
+  back through the existing Unity boundary, opens it front-facing in the 3D
+  inspector without replaying the pack tear, and returns directly to the same
+  native Cards grid.
 
 The last verified iOS simulator flow was:
 
@@ -88,6 +93,9 @@ Collection tab
   -> user taps any card, rotates it in 3D, and taps again to return it
   -> View collection closes the group and emits collectionRequested
   -> native crossfade reveals the React Native Cards segment
+  -> user taps any stored card
+  -> Unity opens that exact card front-facing for unrestricted 3D inspection
+  -> Back to collection disposes inspection without mutating the reveal receipt
 ```
 
 ## Important source files
@@ -229,6 +237,8 @@ On Android, Unity calls `onUnityRevealEvent(payload)` on the current Unity host 
   "revealId": "rev_456",
   "packTypeId": "rippies_prism",
   "assetVersion": "prototype-2",
+  "presentationMode": "inspection",
+  "inspectionCardId": "card_789",
   "cards": [
     {
       "id": "card_789",
@@ -324,6 +334,12 @@ On Android, Unity calls `onUnityRevealEvent(payload)` on the current Unity host 
   "receiptSignature": "signed-by-server"
 }
 ```
+
+`presentationMode` and `inspectionCardId` are optional presentation-only
+fields. The native shell adds them when reopening an owned card; they are not
+written back into the immutable reveal receipt. Normal pack reveals omit both
+fields. In inspection mode Unity presents `inspectionCardId` first and skips
+the pack animation.
 
 `cards` is the immutable five-card result. `card` mirrors `cards[0]` as a
 temporary backward-compatible primary-hit alias for older stored receipts.

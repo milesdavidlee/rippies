@@ -1,5 +1,5 @@
-import React from 'react';
-import {Pressable, StyleSheet, Text, View} from 'react-native';
+import React, {useEffect, useRef, useState} from 'react';
+import {Animated, Pressable, StyleSheet, Text, View} from 'react-native';
 
 import {tokens} from '../design/tokens';
 import {NativeGlassView} from './NativeGlassView';
@@ -18,9 +18,43 @@ type Props = {
 };
 
 export function TabBar({activeTab, onChange}: Props) {
+  const [barWidth, setBarWidth] = useState(0);
+  const activeIndex = tabs.findIndex(tab => tab.id === activeTab);
+  const selectionPosition = useRef(new Animated.Value(activeIndex)).current;
+  const tabWidth = Math.max(0, (barWidth - 16) / tabs.length);
+
+  useEffect(() => {
+    Animated.spring(selectionPosition, {
+      damping: 20,
+      mass: 0.72,
+      stiffness: 190,
+      toValue: activeIndex,
+      useNativeDriver: true,
+    }).start();
+  }, [activeIndex, selectionPosition]);
+
   return (
-    <View style={styles.container}>
+    <View
+      onLayout={event => setBarWidth(event.nativeEvent.layout.width)}
+      style={styles.container}>
       <NativeGlassView pointerEvents="none" style={styles.glass} />
+      {tabWidth > 0 ? (
+        <Animated.View
+          pointerEvents="none"
+          style={[
+            styles.selection,
+            {
+              transform: [{translateX: Animated.multiply(selectionPosition, tabWidth)}],
+              width: tabWidth,
+            },
+          ]}>
+          <NativeGlassView
+            highlighted
+            pointerEvents="none"
+            style={styles.selectionGlass}
+          />
+        </Animated.View>
+      ) : null}
       {tabs.map(tab => {
         const active = activeTab === tab.id;
         return (
@@ -59,12 +93,28 @@ const styles = StyleSheet.create({
     shadowRadius: 24,
   },
   glass: {
+    backgroundColor: 'rgba(242, 246, 255, 0.16)',
+    borderRadius: tokens.radius.pill,
     bottom: 0,
     left: 0,
     position: 'absolute',
     right: 0,
     top: 0,
+  },
+  selection: {
+    bottom: 7,
+    left: 8,
+    position: 'absolute',
+    top: 7,
+  },
+  selectionGlass: {
+    backgroundColor: 'rgba(248, 250, 255, 0.78)',
     borderRadius: tokens.radius.pill,
+    bottom: 0,
+    left: 0,
+    position: 'absolute',
+    right: 0,
+    top: 0,
   },
   tab: {
     alignItems: 'center',
@@ -72,6 +122,7 @@ const styles = StyleSheet.create({
     flex: 1,
     gap: 2,
     paddingVertical: 6,
+    zIndex: 1,
   },
   icon: {
     color: '#646B7B',
@@ -83,8 +134,8 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   active: {
-    color: tokens.color.cyan,
-    textShadowColor: 'rgba(112, 230, 255, 0.38)',
+    color: '#10131A',
+    textShadowColor: 'rgba(255, 255, 255, 0.55)',
     textShadowOffset: {width: 0, height: 0},
     textShadowRadius: 10,
   },

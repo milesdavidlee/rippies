@@ -36,7 +36,12 @@ namespace Rippies.Reveal
         public RevealPayload Payload => payload;
         public CardPayload[] RevealCards =>
             payload == null ? Array.Empty<CardPayload>() : payload.Cards;
+        public CardPayload[] PresentationCards =>
+            payload == null ? Array.Empty<CardPayload>() : payload.PresentationCards;
         public int RevealedCardCount => RevealCards.Length;
+        public bool IsInspectionMode => payload != null && payload.IsInspectionMode;
+        public CardPayload InspectionCard =>
+            payload == null ? null : payload.InspectionCard;
         public Color AccentColor => accentColor;
         public bool IsClosing => closing;
         public bool HasAuthoredPack => authoredPack != null && authoredPack.IsAvailable;
@@ -85,7 +90,9 @@ namespace Rippies.Reveal
             // Unity stays resident between pack openings, so this ordering
             // prevents presentation-pivot transforms from leaking forward.
             ResetReveal();
-            CardPayload primaryCard = payload.PrimaryCard;
+            CardPayload primaryCard = payload.IsInspectionMode
+                ? payload.InspectionCard
+                : payload.PrimaryCard;
             cardPresenter?.Apply(primaryCard);
             authoredPack?.SetCard(primaryCard, payload.packTypeId);
             ApplyPackPalette(primaryCard);
@@ -218,7 +225,11 @@ namespace Rippies.Reveal
         public void NotifyCardVisible()
         {
             SetState(RipState.Revealing);
-            CardPayload primaryCard = payload == null ? null : payload.PrimaryCard;
+            CardPayload primaryCard = payload == null
+                ? null
+                : payload.IsInspectionMode
+                    ? payload.InspectionCard
+                    : payload.PrimaryCard;
             Emit("cardVisible", primaryCard == null ? "" : primaryCard.id);
         }
 

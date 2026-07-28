@@ -1,4 +1,4 @@
-import React, {useEffect, useState} from 'react';
+import React, {useCallback, useEffect, useState} from 'react';
 import {StatusBar, StyleSheet, View} from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 
@@ -6,6 +6,7 @@ import {TabBar, type AppTab} from '../components/TabBar';
 import {fakeInventory, type InventoryPack} from '../data/fakeInventory';
 import {tokens} from '../design/tokens';
 import {RevealExperience} from '../reveal/RevealExperience';
+import type {CardPayload} from '../reveal/contracts';
 import {
   loadOpenedPackIds,
   markPackOpened,
@@ -21,26 +22,43 @@ export function AppShell() {
     'packs',
   );
   const [selectedPack, setSelectedPack] = useState<InventoryPack | null>(null);
+  const [inspectionCardId, setInspectionCardId] = useState<string | null>(null);
   const [openedPackIds, setOpenedPackIds] = useState<string[]>([]);
 
   useEffect(() => {
     loadOpenedPackIds().then(setOpenedPackIds);
   }, []);
 
-  const completeReveal = async (pack: InventoryPack) => {
+  const completeReveal = useCallback(async (pack: InventoryPack) => {
     const next = await markPackOpened(pack.inventoryId);
     setOpenedPackIds(next);
     setSelectedPack(null);
+    setInspectionCardId(null);
     setCollectionView('cards');
     setActiveTab('collection');
-  };
+  }, []);
 
-  const reset = async () => {
+  const openPack = useCallback((pack: InventoryPack) => {
+    setInspectionCardId(null);
+    setSelectedPack(pack);
+  }, []);
+
+  const inspectCard = useCallback((pack: InventoryPack, card: CardPayload) => {
+    setInspectionCardId(card.id);
+    setSelectedPack(pack);
+  }, []);
+
+  const dismissReveal = useCallback(() => {
+    setSelectedPack(null);
+    setInspectionCardId(null);
+  }, []);
+
+  const reset = useCallback(async () => {
     await resetFakeCollection();
     setOpenedPackIds([]);
     setCollectionView('packs');
     setActiveTab('collection');
-  };
+  }, []);
 
   return (
     <View style={styles.root}>
@@ -50,14 +68,15 @@ export function AppShell() {
           {activeTab === 'discover' ? (
             <DiscoverScreen
               featuredPack={fakeInventory[2]}
-              onOpen={setSelectedPack}
+              onOpen={openPack}
               onViewCollection={() => setActiveTab('collection')}
             />
           ) : null}
           {activeTab === 'collection' ? (
             <CollectionScreen
               activeView={collectionView}
-              onOpen={setSelectedPack}
+              onInspectCard={inspectCard}
+              onOpen={openPack}
               onViewChange={setCollectionView}
               openedPackIds={openedPackIds}
               packs={fakeInventory}
@@ -74,7 +93,8 @@ export function AppShell() {
       </SafeAreaView>
 
       <RevealExperience
-        onCancel={() => setSelectedPack(null)}
+        inspectionCardId={inspectionCardId}
+        onCancel={dismissReveal}
         onComplete={completeReveal}
         pack={selectedPack}
       />

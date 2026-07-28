@@ -101,7 +101,9 @@ namespace Rippies.Reveal
             DrawPanel(pill, ProductDesignLanguage.Surface, ProductDesignLanguage.Line, 1f);
 
             string status = controller.State == RipState.Complete
-                ? "INSPECT MODE"
+                ? controller.IsInspectionMode
+                    ? "CARD INSPECTOR"
+                    : "INSPECT MODE"
                 : controller.State == RipState.Presenting
                     ? "PACK INCOMING"
                 : controller.AcceptsTearInput
@@ -154,18 +156,24 @@ namespace Rippies.Reveal
 
             GUI.Label(
                 new Rect(contentX, 112f, contentWidth, 18f),
-                "+  COLLECTION",
+                controller.IsInspectionMode
+                    ? "COLLECTION CARD"
+                    : "+  COLLECTION",
                 productStatusStyle);
             GUI.Label(
                 new Rect(contentX, 136f, contentWidth, 34f),
-                "Added " + Mathf.Max(1, controller.RevealedCardCount) +
-                    " cards to your collection",
+                controller.IsInspectionMode
+                    ? controller.InspectionCard?.name ?? "Collection card"
+                    : "Added " + Mathf.Max(1, controller.RevealedCardCount) +
+                        " cards to your collection",
                 productCenteredTitleStyle);
             GUI.Label(
                 new Rect(contentX, 172f, contentWidth, 22f),
                 controller.IsClosing
                     ? "Taking you back to your cards…"
-                    : "Tap a card to inspect it. Tap again to return.",
+                    : controller.IsInspectionMode
+                        ? "Drag horizontally to inspect every angle."
+                        : "Tap a card to inspect it. Tap again to return.",
                 productCenteredDetailStyle);
 
             Rect button = new Rect(contentX + 42f, logicalHeight - 88f, contentWidth - 84f, 48f);
@@ -177,7 +185,11 @@ namespace Rippies.Reveal
             GUI.enabled = !controller.IsClosing;
             if (GUI.Button(
                     button,
-                    controller.IsClosing ? "OPENING COLLECTION…" : "VIEW COLLECTION  →",
+                    controller.IsClosing
+                        ? "OPENING COLLECTION…"
+                        : controller.IsInspectionMode
+                            ? "BACK TO COLLECTION  →"
+                            : "VIEW COLLECTION  →",
                     controller.IsClosing
                         ? productButtonDisabledStyle
                         : productButtonStyle))

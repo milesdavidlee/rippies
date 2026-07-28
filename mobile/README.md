@@ -11,10 +11,12 @@ reveal when a local `UnityFramework.framework` export is embedded.
 ## What is implemented
 
 - Discover, Collection, and Profile tabs with a shared visual language and a
-  native iOS 26 Liquid Glass dark-mode tab bar (dark material fallback on
-  earlier iOS).
+  regular native iOS 26 Liquid Glass tab bar whose bright selection capsule
+  animates with the active tab (regular material fallback on earlier iOS).
 - Six deterministic fake inventory records with five assigned cards per pack.
 - Selectable unopened packs and a real Cards collection segment.
+- Tappable stored cards that reopen the exact card directly in Unity's
+  front-facing 3D inspector without replaying the pack tear.
 - A full-screen local fallback plus the real embedded Unity tear animation.
 - Persistent reveal receipts and opened-pack state through AsyncStorage.
 - Resume-safe behavior: the assigned card group and presentation state never reroll.
@@ -61,12 +63,18 @@ bundle exec pod install --project-directory=ios
    front, edge, and custom back, then tap it again to return it to the same slot.
 7. Select **View collection** on the Unity completion canvas and verify the
    coordinated close returns to the populated **Cards** segment.
-8. Reopen the same receipt before confirming, or restart the app, to verify the
+8. In **Collection → Cards**, tap any stored card and verify it opens directly,
+   front-facing and correctly framed, in Unity. Drag horizontally through its
+   face, edge, and back, then select **Back to collection** and verify the same
+   Cards grid returns without changing the receipt.
+9. Switch among Discover, Collection, and Profile and verify the bright Liquid
+   Glass selection capsule follows the active tab.
+10. Reopen the same receipt before confirming, or restart the app, to verify the
    five assigned cards are restored.
-9. Without restarting the app, open a second and third pack and verify the
+11. Without restarting the app, open a second and third pack and verify the
    authored card group keeps the same size, centered pivots, and reachable
    collection action.
-10. Use **Profile → Reset fake collection** to replay from a clean state.
+12. Use **Profile → Reset fake collection** to replay from a clean state.
 
 To test the real Unity handoff, export the simulator player before running the
 app:
@@ -107,7 +115,9 @@ The iOS host:
    `revealComplete`.
 6. Emits `collectionRequested` only after the user chooses **View collection**
    and Unity finishes its closing motion.
-7. Restores the React Native window on disposal or interruption.
+7. Reuses the same host for direct stored-card inspection, then disposes it
+   through **Back to collection** without completing or altering a reveal.
+8. Restores the React Native window on disposal or interruption.
 
 Generated Unity Xcode exports remain local and must not be committed. Use
 `ios/scripts/export-unity-ios.sh device` for a physical-device export. The

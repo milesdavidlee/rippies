@@ -130,6 +130,11 @@ namespace Rippies.Reveal
                 }
                 BuildCardGroup(owner, interactiveCard);
                 cardGroup?.SetRevealProgress(1f);
+                if (owner.IsInspectionMode)
+                {
+                    cardGroup?.SelectIndex(0);
+                }
+
                 softOrbit?.SetCardGroup(cardGroup);
             }
 
@@ -540,8 +545,10 @@ namespace Rippies.Reveal
             }
 
             interactiveCards.Add(primary);
-            CardPayload[] payloadCards = owner.RevealCards;
-            int cardCount = Mathf.Min(payloadCards.Length, 5);
+            CardPayload[] payloadCards = owner.PresentationCards;
+            int cardCount = owner.IsInspectionMode
+                ? Mathf.Min(payloadCards.Length, 1)
+                : Mathf.Min(payloadCards.Length, 5);
             for (int index = 1; index < cardCount; index++)
             {
                 CardPayload payloadCard = payloadCards[index];
@@ -555,7 +562,10 @@ namespace Rippies.Reveal
             }
 
             cardGroup = new CardGroupPresentation();
-            cardGroup.Configure(Camera.main, interactiveCards);
+            cardGroup.Configure(
+                Camera.main,
+                interactiveCards,
+                owner.IsInspectionMode);
         }
 
         private static Transform CreateGeneratedCardCopy(

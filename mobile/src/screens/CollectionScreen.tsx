@@ -12,11 +12,13 @@ import {PackArtwork} from '../components/PackArtwork';
 import {ScreenHeader} from '../components/ScreenHeader';
 import type {InventoryPack} from '../data/fakeInventory';
 import {tokens} from '../design/tokens';
+import type {CardPayload} from '../reveal/contracts';
 
 type Props = {
   packs: InventoryPack[];
   openedPackIds: string[];
   activeView: 'packs' | 'cards';
+  onInspectCard: (pack: InventoryPack, card: CardPayload) => void;
   onOpen: (pack: InventoryPack) => void;
   onViewChange: (view: 'packs' | 'cards') => void;
 };
@@ -25,6 +27,7 @@ export function CollectionScreen({
   packs,
   openedPackIds,
   activeView,
+  onInspectCard,
   onOpen,
   onViewChange,
 }: Props) {
@@ -124,10 +127,17 @@ export function CollectionScreen({
       ) : openedCards.length ? (
         <View style={[styles.grid, {gap}]}>
           {openedCards.map(({card, pack}) => (
-            <View
+            <Pressable
+              accessibilityHint="Opens this card in the Unity 3D inspector"
               accessibilityLabel={`${card.name}, ${card.rarityTier}`}
+              accessibilityRole="button"
               key={card.id}
-              style={[styles.cardTile, {width: tileWidth}]}>
+              onPress={() => onInspectCard(pack, card)}
+              style={({pressed}) => [
+                styles.cardTile,
+                {width: tileWidth},
+                pressed && styles.pressed,
+              ]}>
               <View
                 style={[
                   styles.cardArt,
@@ -149,7 +159,7 @@ export function CollectionScreen({
                 {card.archetype.toUpperCase()}
               </Text>
               <Text style={styles.edition}>{card.grade}</Text>
-            </View>
+            </Pressable>
           ))}
         </View>
       ) : (

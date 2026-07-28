@@ -7,6 +7,7 @@
 @interface RippiesGlassView : UIView
 
 @property(nonatomic, strong) UIVisualEffectView *effectView;
+@property(nonatomic, assign, getter=isHighlighted) BOOL highlighted;
 
 @end
 
@@ -21,12 +22,11 @@
       UIGlassEffect *glass =
           [UIGlassEffect effectWithStyle:UIGlassEffectStyleRegular];
       glass.interactive = YES;
-      glass.tintColor =
-          [UIColor colorWithRed:0.035 green:0.047 blue:0.082 alpha:0.42];
+      glass.tintColor = [UIColor colorWithWhite:1.0 alpha:0.08];
       effect = glass;
     } else {
       effect = [UIBlurEffect
-          effectWithStyle:UIBlurEffectStyleSystemUltraThinMaterialDark];
+          effectWithStyle:UIBlurEffectStyleSystemUltraThinMaterial];
     }
 
     _effectView = [[UIVisualEffectView alloc] initWithEffect:effect];
@@ -36,6 +36,7 @@
     [self addSubview:_effectView];
 
     self.backgroundColor = UIColor.clearColor;
+    self.overrideUserInterfaceStyle = UIUserInterfaceStyleLight;
     self.clipsToBounds = YES;
     self.layer.cornerRadius = 26.0;
     self.layer.cornerCurve = kCACornerCurveContinuous;
@@ -44,6 +45,24 @@
     self.layer.borderWidth = 0.75;
   }
   return self;
+}
+
+- (void)setHighlighted:(BOOL)highlighted
+{
+  _highlighted = highlighted;
+  if (@available(iOS 26.0, *)) {
+    UIGlassEffect *glass = (UIGlassEffect *)self.effectView.effect;
+    glass.tintColor = [UIColor colorWithWhite:1.0
+                                       alpha:highlighted ? 0.52 : 0.10];
+  } else {
+    self.effectView.contentView.backgroundColor =
+        [UIColor colorWithWhite:1.0 alpha:highlighted ? 0.42 : 0.10];
+  }
+
+  self.layer.borderColor =
+      [UIColor colorWithWhite:1.0
+                        alpha:highlighted ? 0.38 : 0.18].CGColor;
+  self.layer.borderWidth = highlighted ? 1.0 : 0.75;
 }
 
 - (void)layoutSubviews
@@ -61,6 +80,8 @@
 @implementation RippiesGlassViewManager
 
 RCT_EXPORT_MODULE(RippiesGlassView)
+
+RCT_EXPORT_VIEW_PROPERTY(highlighted, BOOL)
 
 + (BOOL)requiresMainQueueSetup
 {

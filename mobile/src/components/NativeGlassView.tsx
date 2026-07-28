@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 
 type Props = ViewProps & {
+  highlighted?: boolean;
   style?: StyleProp<ViewStyle>;
 };
 
@@ -20,17 +21,28 @@ const IOSGlassView = managerAvailable
   ? requireNativeComponent<Props>('RippiesGlassView')
   : null;
 
-export function NativeGlassView({children, style, ...props}: Props) {
+export function NativeGlassView({
+  children,
+  highlighted = false,
+  style,
+  ...props
+}: Props) {
   if (IOSGlassView) {
     return (
-      <IOSGlassView style={style} {...props}>
+      <IOSGlassView highlighted={highlighted} style={style} {...props}>
         {children}
       </IOSGlassView>
     );
   }
 
   return (
-    <View style={[styles.fallback, style]} {...props}>
+    <View
+      style={[
+        styles.fallback,
+        highlighted && styles.fallbackHighlighted,
+        style,
+      ]}
+      {...props}>
       {children}
     </View>
   );
@@ -38,8 +50,12 @@ export function NativeGlassView({children, style, ...props}: Props) {
 
 const styles = {
   fallback: {
-    backgroundColor: 'rgba(22, 26, 38, 0.88)',
-    borderColor: 'rgba(255, 255, 255, 0.12)',
+    backgroundColor: 'rgba(242, 246, 255, 0.20)',
+    borderColor: 'rgba(255, 255, 255, 0.24)',
     borderWidth: 1,
+  } satisfies ViewStyle,
+  fallbackHighlighted: {
+    backgroundColor: 'rgba(255, 255, 255, 0.42)',
+    borderColor: 'rgba(255, 255, 255, 0.52)',
   } satisfies ViewStyle,
 };

@@ -42,6 +42,8 @@ namespace Rippies.Reveal
         public string revealId = "rev_demo_001";
         public string packTypeId = "rippies_genesis";
         public string assetVersion = "1";
+        public string presentationMode = "reveal";
+        public string inspectionCardId = "";
         public CardPayload[] cards = Array.Empty<CardPayload>();
         public CardPayload card = new CardPayload();
         public string receiptSignature = "local-demo";
@@ -55,6 +57,69 @@ namespace Rippies.Reveal
 
         public CardPayload PrimaryCard =>
             Cards.Length > 0 ? Cards[0] : card;
+
+        public bool IsInspectionMode =>
+            string.Equals(
+                presentationMode,
+                "inspection",
+                StringComparison.OrdinalIgnoreCase);
+
+        public CardPayload InspectionCard
+        {
+            get
+            {
+                if (!string.IsNullOrWhiteSpace(inspectionCardId))
+                {
+                    foreach (CardPayload candidate in Cards)
+                    {
+                        if (candidate != null &&
+                            string.Equals(
+                                candidate.id,
+                                inspectionCardId,
+                                StringComparison.Ordinal))
+                        {
+                            return candidate;
+                        }
+                    }
+                }
+
+                return PrimaryCard;
+            }
+        }
+
+        public CardPayload[] PresentationCards
+        {
+            get
+            {
+                CardPayload[] source = Cards;
+                if (!IsInspectionMode || source.Length <= 1)
+                {
+                    return source;
+                }
+
+                CardPayload selected = InspectionCard;
+                var ordered = new CardPayload[source.Length];
+                ordered[0] = selected;
+                int outputIndex = 1;
+                foreach (CardPayload candidate in source)
+                {
+                    if (candidate == null || ReferenceEquals(candidate, selected))
+                    {
+                        continue;
+                    }
+
+                    ordered[outputIndex++] = candidate;
+                }
+
+                if (outputIndex == ordered.Length)
+                {
+                    return ordered;
+                }
+
+                Array.Resize(ref ordered, outputIndex);
+                return ordered;
+            }
+        }
 
         public static RevealPayload FromJson(string json)
         {
